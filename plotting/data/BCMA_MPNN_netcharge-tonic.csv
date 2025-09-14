@@ -1,0 +1,23 @@
+binder_name,binder_seq_net_charge,coculture CAR Only,mpnn_redesign_type
+BCMA_l59_int_0480,1.79354660145197,46.0,interface
+BCMA_l59_int_0544,-0.209014324494959,30.4,interface
+BCMA_l59_int_0656,-0.205031746153505,50.1,interface
+BCMA_l59_int_0893,-1.20374505542378,25.8,interface
+BCMA_l59_int_1038,-1.20761968053106,5.85,interface
+BCMA_l59_int_1280,-1.20701509210498,26.4,interface
+BCMA_l59_int_1500,0.791763486844705,46.3,interface
+BCMA_l59_int_1525,-1.20592115296769,7.25,interface
+BCMA_l59_int_1568,0.794047537622783,81.6,interface
+BCMA_l59_int_1575,-1.20622933754607,42.0,interface
+BCMA_l59_int_1793,-0.206237280765318,64.7,interface
+BCMA_l59_int_wildtype,0.794956668386899,19.2,parental
+BCMA_l59_nonint_0366,-5.20287338030055,19.2,non-interface
+BCMA_l59_nonint_0465,-2.20423374739643,13.6,non-interface
+BCMA_l59_nonint_0815,-0.205836565923793,11.2,non-interface
+BCMA_l59_nonint_0840,-3.20303933477674,5.38,non-interface
+BCMA_l59_nonint_1083,-0.16351333601278,31.3,non-interface
+BCMA_l59_nonint_1192,-6.19948744716592,23.7,non-interface
+BCMA_l59_nonint_1399,2.79386251793523,74.7,non-interface
+BCMA_l59_nonint_1481,-0.205435851082266,72.8,non-interface
+BCMA_l59_nonint_1890,-6.19985342167194,13.7,non-interface
+BCMA_l59_nonint_1951,-3.1992030922453,19.2,non-interface
