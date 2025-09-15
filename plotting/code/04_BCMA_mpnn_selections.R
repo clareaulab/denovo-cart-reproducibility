@@ -70,5 +70,15 @@ p5 <- ggplot(shuf(dt), aes(x = cl_redesign, y = Average_pae_interaction*31, colo
 cowplot::ggsave2(cowplot::plot_grid(p2, p3, p4, p5, nrow = 1), 
                  file = "../plots/bcma_mpnn_metrics_verify.pdf", width = 6.6, height = 1.4)
 
-
-
+# Make levenshtein distance
+dt.selected <- dt[(dt$mpnn_redesign_selection != "parental")&(dt$cl_redesign == "selected"),]
+p6 <- ggplot(shuf(dt.selected), aes(x = mpnn_redesign_selection, y=hamming_to_wildtype, color=mpnn_redesign_selection)) +
+  geom_boxplot(color = "black", fill = NA, outlier.shape = NA, width = 0.6) + 
+  geom_quasirandom(size = 0.5) +
+  pretty_plot(fontsize = 8) + 
+  L_border() + theme(legend.position = "none") +
+  scale_color_manual(values = c("dodgerblue3", "firebrick" )) +
+  ylim(5,26) +
+  labs(y="Levenshtein to Parental",x="cl_redesign")
+p6
+cowplot::ggsave2(p6, file = "../plots/bcma_mpnn_levenshtein.pdf",width=1.65,height=1.4)
