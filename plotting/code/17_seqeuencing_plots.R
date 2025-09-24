@@ -42,7 +42,7 @@ plot_fc <- function(df,pcol,curcol) {
   # Plot
   fc_plot <- ggplot(df, aes(x = log1p_tpm, y = logFc, color = is_selected)) + 
     geom_point() +
-    scale_color_manual(values = c("dodgerblue3","firebrick")) + 
+    scale_color_manual(values = c("lightgray","dodgerblue3")) + 
     pretty_plot(fontsize = 8) + L_border() + 
     theme(legend.position = "none") +
     geom_hline(yintercept =0, linetype = 2) +
@@ -71,11 +71,11 @@ plot_binder_tpm <- function(df, condition_labels) {
   df_long$condition <- factor(df_long$condition, levels = plot_cols)
   p <- ggplot(df_long, aes(x = condition, y = TPM, group = binder_id, color = is_selected)) +
     geom_line(aes(group = binder_id), alpha = 0.6) +
-    geom_point(size = 3) +
+    geom_point(size = 1) +
     scale_x_discrete(labels = condition_labels[plot_cols]) +
-    scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray"),
+    scale_color_manual(values = c("TRUE" = "dodgerblue3", "FALSE" = "lightgrey"),
                        labels = c("TRUE" = "Selected Binders", "FALSE" = "Other Binders")) +
-    labs(x = NULL,y = "TPM",color = "Group") +
+    labs(x = "library",y = "TPM",color = "Group") +
     pretty_plot(fontsize = 8) + L_border() + 
     theme(legend.position = "none")
   return(p)
@@ -90,7 +90,7 @@ bcma_condition_map <- c(
 )
 bcma_all_tpm_plot <- plot_binder_tpm(bcma_tpm, bcma_condition_map)
 bcma_all_tpm_plot
-cowplot::ggsave2(bcma_all_tpm_plot, file = "../plots/tpm_bcma_all_nM.pdf", width = 1.3*4, height = 1.3)
+cowplot::ggsave2(bcma_all_tpm_plot, file = "../plots/tpm_bcma_all_nM.pdf", width = 3.5, height = 1.3)
 
 cd19_big_condition_map <- c(
   CD19_Big_Parental_mean = "Parental",
@@ -99,7 +99,7 @@ cd19_big_condition_map <- c(
 )
 cd19_big_all_tpm_plot <- plot_binder_tpm(cd19_big_tpm, cd19_big_condition_map)
 cd19_big_all_tpm_plot
-cowplot::ggsave2(cd19_big_all_tpm_plot, file = "../plots/tpm_CD19_big_all_nM.pdf", width = 1.3*3, height = 1.3)
+cowplot::ggsave2(cd19_big_all_tpm_plot, file = "../plots/tpm_CD19_big_all_nM.pdf", width = 3.5, height = 1.3)
 
 cd22_big_condition_map <- c(
   CD22_parental_mean = "Parental",
@@ -108,7 +108,7 @@ cd22_big_condition_map <- c(
   CD22_100_mean = "MACS 100nM"
 )
 cd22_tpm_plot <- plot_binder_tpm(cd22_tpm, cd22_big_condition_map)
-cowplot::ggsave2(cd19_big_all_tpm_plot, file = "../plots/tpm_CD22_all_nM.pdf", width = 1.3*4, height = 1.3)
+cowplot::ggsave2(cd22_tpm_plot, file = "../plots/tpm_CD22_all_nM.pdf", width = 3.5, height = 1.3)
 
 
 
