@@ -2,10 +2,14 @@ library(BuenColors)
 library(dplyr)
 library(data.table)
 
+setwd("//home/chuh/protein_design/denovo-cart-reproducibility/plotting/code")
+
 bcma_tpm <- read.csv("../data/BCMA_bindcraft_tpm.csv")
 cd19_big_tpm <- read.csv("../data/CD19_big_bindcraft_tpm.csv") %>% rename(binder_id = target_id)
 cd19_pd_tpm <- read.csv("../data/CD19_PartialDiffusion_tpm.csv")  %>% rename(binder_id = target_id)
 cd22_tpm <- read.csv("../data/CD22_bindcraft_tpm.csv")
+
+cd19_e3_tpm <- read.csv("../data/CD19_e3_fold_conditioned_tpm.csv")
 
 ## Highlight the binders selected for testing
 bcma_tested_in_cars <- c(
