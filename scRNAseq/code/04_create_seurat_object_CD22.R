@@ -113,9 +113,12 @@ cd22_oe_so_tumor_filtered =  cd22_oe_so_tumor_filtered %>%
 
 ## Inspect clusters
 DimPlot(cd22_oe_so_tumor_filtered,
-        reduction = "umap_rna",
+        reduction = "umap_harmony",
         group.by = c("seurat_clusters","Phase","binder_name")
 )
+
+Idents(cd22_oe_so_tumor_filtered) = "binder_name"
+DimPlot(cd22_oe_so_tumor_filtered,reduction = "umap_harmony",split.by = "binder_name")
 
 Idents(cd22_oe_so_tumor_filtered) = "binder_name"
 #Idents(bcma_so_tumor_filtered) = "seurat_clusters"

@@ -1,103 +1,14 @@
 library(Seurat)
 library(dplyr)
 library(data.table)
+library(BuenColors)
 setwd("/home/chuh/protein_design/denovo-cart-reproducibility/scRNAseq")
 
 ## Load data
 bcma_so_tumor_filtered = readRDS("./data/seurat_objects/bcma_so_tumor_filtered.rds")
 
-## Load starCAR outputs
-bcma_so_starCAT_programs = read.table(paste0("./data/starCAT/BCMA_output/bcma.rf_usage_normalized.txt"))
-bcma_so_starCAT_scores = read.table(paste0("./data/starCAT/BCMA_output/bcma.scores.txt"))
-bcma_so_tumor_filtered = bcma_so_tumor_filtered %>%
-  AddMetaData(metadata = bcma_so_starCAT_programs) %>%
-  AddMetaData(metadata = bcma_so_starCAT_scores)
-
-## Plot the proportion of cells predicted to have underwent antigen-specific activation
-bcma_asa_binary_data = bcma_so_tumor_filtered@meta.data %>% # <-- Start the pipe with the extracted data.frame
-  dplyr::count(binder_name, ASA_binary) %>%
-  dplyr::group_by(binder_name) %>%
-  dplyr::mutate(Proportion = n / sum(n))# %>%
-
-bcma_asa_plot_df = bcma_asa_binary_data %>%
-  filter(ASA_binary == "True") %>%
-  group_by(binder_name) %>%
-  mutate(
-    Total_N = sum(bcma_asa_binary_data$n[bcma_asa_binary_data$binder_name == binder_name]), # Recalculate Total_N using original data frame
-    Success_N = n
-  ) %>%
-  ungroup() %>%
-  mutate(
-    SE = sqrt(Proportion * (1 - Proportion) / Total_N),
-    CI_lower = Proportion - 1.96 * SE,
-    CI_upper = Proportion + 1.96 * SE
-  ) %>%
-  mutate(
-    CI_lower = pmax(0, CI_lower),
-    CI_upper = pmin(1, CI_upper)
-  )
-
-bcma_asa_plot = ggplot(bcma_asa_plot_df, aes(x = binder_name, y = Proportion*100)) +
-  # Add bar geometry
-  geom_col(fill = "white", color = "black", width = 0.7) +
-  # Add error bars using the calculated confidence intervals
-  geom_errorbar(aes(ymin = CI_lower*100, ymax = CI_upper*100),
-                width = 0.2, # Width of the horizontal lines at the end of the error bar
-                color = "black",
-                linewidth = 0.8) +
-  pretty_plot() + L_border() + ylim(0,100) +
-  labs(x="Binder Name",y="% Antigen-specific Activated Cells")
-bcma_asa_plot
-cowplot::ggsave2("./plots/BCMA/percent_antigen_specfic_activation.pdf",bcma_asa_plot,dpi=300,width=8,height=3)
-cowplot::ggsave2("./plots/BCMA/percent_antigen_specfic_activation.png",bcma_asa_plot,dpi=300,width=8,height=3)
-
-## Make a heatmap of the means
-functional_modules = c(
-  "CellCycle.G2M","CellCycle.S","CellCycle.Late.S","Cytoskeleton","Cytotoxic",
-  "ISG","Exhaustion","ASA","Proliferation","Translation","HLA"
-)
-functional_modules = c(colnames(bcma_so_starCAT_programs),"ASA","Proliferation")
-test_plot_data <- bcma_so_tumor_filtered@meta.data %>%
-  dplyr::select(all_of("binder_name"), all_of(functional_modules)) %>%
-  group_by(binder_name) %>% 
-  summarise(across(all_of(functional_modules), mean, .names = "Mean_{.col}"),
-            .groups = 'drop')
-heatmap_matrix_raw <- test_plot_data %>%
-  as.data.frame() %>%
-  column_to_rownames(var = "binder_name") %>%
-  t() %>%
-  as.matrix()
-heatmap_matrix_scaled <- t(scale(t(heatmap_matrix_raw)))
-col_fun <- circlize::colorRamp2(c(-2, 0, 2), c("blue", "white", "red"))
-ht <- Heatmap(
-  heatmap_matrix_scaled,
-  
-  # Clustering
-  cluster_rows = TRUE,
-  cluster_columns = TRUE,
-  
-  # Titles and Legend
-  name = "Z-Score",
-  column_title = "Mean Functional Modules by Binder Name",
-  
-  # Colors
-  col = col_fun,
-  
-  # Text appearance
-  column_names_rot = 45,
-  column_names_gp = gpar(fontsize = 9),
-  row_names_gp = gpar(fontsize = 10)
-)
-
-# --- 4. Draw the Heatmap ---
-draw(ht)
-
 selected_markers_bcma = VlnPlot(bcma_so_tumor_filtered, features = c("IL2","IFNG","GZMA","GZMB"),ncol=4)
 cowplot::ggsave2("./plots/BCMA/selected_markers.png",selected_markers_bcma,dpi=300,width=12,height=4)
-
-asa_marker_bcma = VlnPlot(bcma_so_tumor_filtered, features = c("ASA","Proliferation"),ncol=2)
-cowplot::ggsave2("./plots/BCMA/asa_markers.png",asa_marker_bcma,dpi=300,width=8,height=4)
-
 
 ## Inspect clusters
 bcma_dim_plot = DimPlot(bcma_so_tumor_filtered,
@@ -107,6 +18,65 @@ bcma_dim_plot = DimPlot(bcma_so_tumor_filtered,
 bcma_dim_plot
 cowplot::ggsave2("./plots/BCMA/Dimplot.png",bcma_dim_plot,dpi=300,width=12,height=4)
 
+bcma_so_tumor_filtered@meta.data$binder_name = factor(bcma_so_tumor_filtered@meta.data$binder_name,levels = c(
+  "BCMA_Abecma","BCMA_561726_WT","BCMA_B11_I59_int_1525","BCMA_A2_nonint_0366","BCMA_B4_I59_nonint_1399"
+))
+## Draw the dots properly
+bcma_dots_simple = DimPlot(bcma_so_tumor_filtered, label = FALSE, group.by = c( "binder_name"), shuffle = TRUE, seed = 3,pt.size = 0.01) +
+  scale_color_manual(values = c("#FFB81C","#D91E18","#8B0000","#9966CC","#00BFFF")) + 
+  theme_void() + ggtitle("") + theme(legend.position = "none")
+bcma_dots_simple
+cowplot::ggsave2(bcma_dots_simple, file = "./plots/BCMA/umap_base.png", width = 6, height = 6, dpi = 300)
+
+bcma_dots_simple
+
+## Draw the features
+mk_plot <- function(so,gene){
+  pu <- FeaturePlot(so, features = c(gene),  
+                    pt.size = 0.1, max.cutoff = "q90") + FontSize(main = 0.0001) + 
+    theme_void() + theme(legend.position = "none") + ggtitle("") + 
+    theme(plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+    scale_color_gradientn(colors = c("lightgrey", jdb_palette("solar_rojos")[c(2:9)]))
+  return(pu)
+}
+bcma_feature_plots = cowplot::plot_grid(
+  mk_plot(bcma_so_tumor_filtered,"CD3E"),
+  mk_plot(bcma_so_tumor_filtered,"IFNG"),
+  mk_plot(bcma_so_tumor_filtered,"TNF"),
+  ncol=2,scale=1
+)
+cowplot::ggsave2(bcma_feature_plots,file="./plots/BCMA/umap_features.png",width=6*2,height=6*2, dpi=600)
+
+## Split activated from non-activated
+Idents(bcma_so_tumor_filtered)="binder_name"
+bcma_so_tumor_filtered@meta.data$binder_is_activated = bcma_so_tumor_filtered@meta.data$binder_name %in% c("BCMA_561726_WT","BCMA_B11_I59_int_1525","BCMA_Abecma")
+
+split_activate_plot = DimPlot(bcma_so_tumor_filtered,reduction="umap_harmony",split.by = "binder_is_activated")
+
+split_activate_plot
+
+bcma_marker_data = FetchData(bcma_so_tumor_filtered,
+                             vars = c("IL2","IFNG","TNF","GZMA","GZMB","binder_name"),
+                             slot = "data"
+                             ) %>%
+  pivot_longer(
+    cols = c("IL2", "IFNG", "GZMA", "GZMB"),
+    names_to = "gene",
+    values_to = "val"
+  )
+
+bcma_markers_boxplot = ggplot(bcma_marker_data, aes(x = binder_name, y = val)) +
+  geom_violin(aes(fill=binder_name)) +
+  geom_boxplot(color = "black", fill = NA, outlier.shape = NA, width = 0.6) +
+  pretty_plot(fontsize = 8) +
+  L_border() + theme(legend.position = "none") +
+  facet_wrap(~gene)
+bcma_markers_boxplot
+
+FeaturePlot(bcma_so_tumor_filtered,features=c("IL2","IFNG","TNF"),ncol=3, reduction = "umap_harmony")
+
+split_activate_plot | FeaturePlot(bcma_so_tumor_filtered,features=c("IL2","IFNG"), reduction = "umap_harmony")
+  
 FeaturePlot(
   bcma_so_tumor_filtered,
   features = colnames(bcma_so_starCAT)
@@ -501,6 +471,26 @@ VlnPlot(bcma_so_tumor_filtered, pt.size = 0,
         features = c("effector1","exhaustion2","function3","binder_activation6","binder_tonic7"),
         group.by = "binder_name") & geom_boxplot(outlier.shape = NA,)
 
+## Visualize the DEG results
+highlight_volcano_genes = c("IL2","IFNG","ENTPD1","SELL")
+rownames(evolved_vs_parental) = evolved_vs_parental$gene
+evolved_vs_parental[highlight_volcano_genes,]
+
+evolved_vs_parental_capped = evolved_vs_parental %>% mutate(p_val_adj_capped = pmax(p_val_adj,10**-150))
+bcma_volcano_highlight = evolved_vs_parental_capped %>%
+  ggplot(aes(x = avg_log2FC, y = -log10(p_val_adj_capped), color = gene %in% highlight_volcano_genes)) + 
+  geom_point(size = 0.5) +
+  pretty_plot(fontsize = 7) + L_border() + 
+  labs(x = "log2FC (B5.I0/B5)", y = "-log10(padj)") +
+  scale_color_manual(values = c("black", "firebrick")) +
+  coord_cartesian(xlim = c(-2.5, 2.5), ylim = c(0, 150)) +
+  theme(legend.position = "none")
+
+bcma_volcano_highlight
+cowplot::ggsave2(bcma_volcano_highlight, file = "./plots/BCMA/volcano_bcma_evolved_vs_wildtype.pdf", width = 1.5, height = 1.5)
+
+
+
 library(BuenColors)
 # replacement_dict = c(
 #   "BCMA_Abecma" = "Abecma", "BCMA_561726_WT" = "B5", "BCMA_B11_I59_int_1525" = "B5.I0",
@@ -638,3 +628,95 @@ ggplot(bcma_so_tumor_filtered@meta.data,aes(y=Cytotox1,x=binder_name)) +
   geom_jitter()
 
 DotPlot(bcma_so_tumor_filtered,features = t_cell_features)
+
+## Unused ASA scores
+
+## Load starCAR outputs
+bcma_so_starCAT_programs = read.table(paste0("./data/starCAT/BCMA_output/bcma.rf_usage_normalized.txt"))
+bcma_so_starCAT_scores = read.table(paste0("./data/starCAT/BCMA_output/bcma.scores.txt"))
+bcma_so_tumor_filtered = bcma_so_tumor_filtered %>%
+  AddMetaData(metadata = bcma_so_starCAT_programs) %>%
+  AddMetaData(metadata = bcma_so_starCAT_scores)
+
+## Plot the proportion of cells predicted to have underwent antigen-specific activation
+bcma_asa_binary_data = bcma_so_tumor_filtered@meta.data %>% # <-- Start the pipe with the extracted data.frame
+  dplyr::count(binder_name, ASA_binary) %>%
+  dplyr::group_by(binder_name) %>%
+  dplyr::mutate(Proportion = n / sum(n))# %>%
+
+bcma_asa_plot_df = bcma_asa_binary_data %>%
+  filter(ASA_binary == "True") %>%
+  group_by(binder_name) %>%
+  mutate(
+    Total_N = sum(bcma_asa_binary_data$n[bcma_asa_binary_data$binder_name == binder_name]), # Recalculate Total_N using original data frame
+    Success_N = n
+  ) %>%
+  ungroup() %>%
+  mutate(
+    SE = sqrt(Proportion * (1 - Proportion) / Total_N),
+    CI_lower = Proportion - 1.96 * SE,
+    CI_upper = Proportion + 1.96 * SE
+  ) %>%
+  mutate(
+    CI_lower = pmax(0, CI_lower),
+    CI_upper = pmin(1, CI_upper)
+  )
+
+bcma_asa_plot = ggplot(bcma_asa_plot_df, aes(x = binder_name, y = Proportion*100)) +
+  # Add bar geometry
+  geom_col(fill = "white", color = "black", width = 0.7) +
+  # Add error bars using the calculated confidence intervals
+  geom_errorbar(aes(ymin = CI_lower*100, ymax = CI_upper*100),
+                width = 0.2, # Width of the horizontal lines at the end of the error bar
+                color = "black",
+                linewidth = 0.8) +
+  pretty_plot() + L_border() + ylim(0,100) +
+  labs(x="Binder Name",y="% Antigen-specific Activated Cells")
+bcma_asa_plot
+cowplot::ggsave2("./plots/BCMA/percent_antigen_specfic_activation.pdf",bcma_asa_plot,dpi=300,width=8,height=3)
+cowplot::ggsave2("./plots/BCMA/percent_antigen_specfic_activation.png",bcma_asa_plot,dpi=300,width=8,height=3)
+
+## Make a heatmap of the means
+functional_modules = c(
+  "CellCycle.G2M","CellCycle.S","CellCycle.Late.S","Cytoskeleton","Cytotoxic",
+  "ISG","Exhaustion","ASA","Proliferation","Translation","HLA"
+)
+functional_modules = c(colnames(bcma_so_starCAT_programs),"ASA","Proliferation")
+test_plot_data <- bcma_so_tumor_filtered@meta.data %>%
+  dplyr::select(all_of("binder_name"), all_of(functional_modules)) %>%
+  group_by(binder_name) %>% 
+  summarise(across(all_of(functional_modules), mean, .names = "Mean_{.col}"),
+            .groups = 'drop')
+heatmap_matrix_raw <- test_plot_data %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "binder_name") %>%
+  t() %>%
+  as.matrix()
+heatmap_matrix_scaled <- t(scale(t(heatmap_matrix_raw)))
+col_fun <- circlize::colorRamp2(c(-2, 0, 2), c("blue", "white", "red"))
+ht <- Heatmap(
+  heatmap_matrix_scaled,
+  
+  # Clustering
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  
+  # Titles and Legend
+  name = "Z-Score",
+  column_title = "Mean Functional Modules by Binder Name",
+  
+  # Colors
+  col = col_fun,
+  
+  # Text appearance
+  column_names_rot = 45,
+  column_names_gp = gpar(fontsize = 9),
+  row_names_gp = gpar(fontsize = 10)
+)
+
+# --- 4. Draw the Heatmap ---
+draw(ht)
+
+asa_marker_bcma = VlnPlot(bcma_so_tumor_filtered, features = c("ASA","Proliferation"),ncol=2)
+cowplot::ggsave2("./plots/BCMA/asa_markers.png",asa_marker_bcma,dpi=300,width=8,height=4)
+
