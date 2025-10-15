@@ -4,14 +4,22 @@ library(data.table)
 
 setwd("//home/chuh/protein_design/denovo-cart-reproducibility/plotting/code")
 
+bcma_rfd_tpm <- read.csv("../data/BCMA_e3_fold_conditioned_tpm.csv")
 bcma_tpm <- read.csv("../data/BCMA_bindcraft_tpm.csv")
 cd19_big_tpm <- read.csv("../data/CD19_big_bindcraft_tpm.csv") %>% rename(binder_id = target_id)
 cd19_pd_tpm <- read.csv("../data/CD19_PartialDiffusion_tpm.csv")  %>% rename(binder_id = target_id)
 cd22_tpm <- read.csv("../data/CD22_bindcraft_tpm.csv")
-
 cd19_e3_tpm <- read.csv("../data/CD19_e3_fold_conditioned_tpm.csv")
 
 ## Highlight the binders selected for testing
+bcma_rfd_tested_in_cars <- c(
+  "BCMAE3FoldConditionedAllFolds_1XU2ChainR_R18-R20-R26_50-100_i16_51_dldesign_0",
+  "BCMAE3FoldConditionedAllFolds_1XU2ChainR_R18-R20-R26_50-100_i9_54_dldesign_0",
+  "BCMAE3FoldConditionedAllFolds_1XU2ChainR_R18-R20-R26_50-100_i1_29_dldesign_0",
+  "BCMAE3FoldConditioned_1XU2ChainR_R18-R20-R26_50-100_i55_32_dldesign_0",
+  "BCMAE3FoldConditioned_1XU2ChainR_R18-R20-R26_50-100_i68_76_dldesign_0"
+)
+
 bcma_tested_in_cars <- c(
   "BCMA_l53_s847868_mpnn2","BCMA_l58_s298275_mpnn2","BCMA_l51_s395146_mpnn6",
   "BCMA_l60_s719112_mpnn1","BCMA_l64_s766805_mpnn3","BCMA_l60_s542430_mpnn1",
@@ -30,11 +38,18 @@ cd22_tested_in_cars <- c(
   "CD22_l61_s819258_mpnn1","CD22_l61_s819258_mpnn2","CD22_l64_s571098_mpnn2",
   "CD22_l52_s770345_mpnn1","CD22_l59_s943680_mpnn1"
 )
+cd19_e3_tested_in_cars <- c(
+  "i47_37_dldesign_0","i40_65_dldesign_0","i89_343_dldesign_0",
+  "i55_32_dldesign_7","i18_63_dldesign_7","i15_32_dldesign_0"
+)
 
+bcma_rfd_tpm <- bcma_rfd_tpm %>% mutate(is_selected = binder_id %in% bcma_rfd_tested_in_cars)
 bcma_tpm <- bcma_tpm %>% mutate(is_selected = binder_id %in% bcma_tested_in_cars)
 cd19_big_tpm <- cd19_big_tpm %>% mutate(is_selected = binder_id %in% cd19_big_tested_in_cars)
 cd19_pd_tpm <- cd19_pd_tpm %>% mutate(is_selected = binder_id %in% cd19_pd_tested_in_cars)
 cd22_tpm <- cd22_tpm %>% mutate(is_selected = binder_id %in% cd22_tested_in_cars)
+cd19_e3_tpm <- cd19_e3_tpm %>% mutate(is_selected = binder_id %in% cd19_e3_tested_in_cars)
+
 
 ## Make fold-change plots
 plot_fc <- function(df,pcol,curcol) {
@@ -54,17 +69,22 @@ plot_fc <- function(df,pcol,curcol) {
   return(fc_plot)
 }
 
+bcma_rfd_m100_plot <- plot_fc(bcma_rfd_tpm,"BCMA_parental_mean", "BCMA_100_mean")
 bcma_m1000_plot <- plot_fc(bcma_tpm,"BCMA_parental_mean","BCMA_M1000_mean")
 bcma_m100_plot <- plot_fc(bcma_tpm,"BCMA_parental_mean","BCMA_M100_mean")
 cd22_m100_plot <- plot_fc(cd22_tpm,"CD22_parental_mean","CD22_100_mean")
 cd19_big_m100_plot <- plot_fc(cd19_big_tpm,"CD19_Big_Parental_mean","CD19_Big_MACS_100_mean")
 cd19_pd_m50_plot <- plot_fc(cd19_pd_tpm,"CD19_PartialDiffusion_P_mean","CD19_PartialDiffusion_MACS_50_mean")
+cd19_e3_m3f_plot <- plot_fc(cd19_e3_tpm,"CD19_parental_mean","CD19_M3F_mean")
 
+
+cowplot::ggsave2(bcma_rfd_m100_plot, file = "../plots/tpm_FC_bcma_rfd_100nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(bcma_m1000_plot, file = "../plots/tpm_FC_bcma_1000nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(bcma_m100_plot, file = "../plots/tpm_FC_bcma_100nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(cd22_m100_plot, file = "../plots/tpm_FC_cd22_100nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(cd19_big_m100_plot, file = "../plots/tpm_FC_cd19_big_100nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(cd19_pd_m50_plot, file = "../plots/tpm_FC_cd19_pd_50nM.pdf", width = 1.3, height = 1.3)
+cowplot::ggsave2(cd19_e3_m3f_plot, file = "../plots/tpm_FC_cd19_m3f_1000nM.pdf", width = 1.3, height = 1.3)
 
 ## Make lineplots
 plot_binder_tpm <- function(df, condition_labels) {
@@ -86,6 +106,17 @@ plot_binder_tpm <- function(df, condition_labels) {
 }
 
 # Generate the TPM plots
+bcma_rfd_condition_map <- c(
+  BCMA_parental_mean = "Parental",
+  BCMA_1000_mean = "MACS 1000nM",
+  BCMA_100_mean = "MACS 100nM"
+)
+bcma_rfd_all_tpm_plot <- plot_binder_tpm(bcma_rfd_tpm, bcma_rfd_condition_map)
+bcma_rfd_all_tpm_plot
+cowplot::ggsave2(bcma_rfd_all_tpm_plot, file = "../plots/tpm_bcma_rfd_all_nM.pdf", width = 3.5, height = 1.3)
+
+
+
 bcma_condition_map <- c(
   BCMA_parental_mean = "Parental",
   BCMA_M1000_mean = "MACS 1000nM",
@@ -114,7 +145,16 @@ cd22_big_condition_map <- c(
 cd22_tpm_plot <- plot_binder_tpm(cd22_tpm, cd22_big_condition_map)
 cowplot::ggsave2(cd22_tpm_plot, file = "../plots/tpm_CD22_all_nM.pdf", width = 3.5, height = 1.3)
 
-
+cd19_e3_condition_map <- c(
+  CD19_parental_mean = "Parental",
+  CD19_M1_mean = "MACS 1000nM",
+  CD19_M1F_mean = "FACSx1",
+  CD19_M2F_mean = "FACSx2",
+  CD19_M3F_mean = "FACSx3"
+)
+cd19_e3_tpm_plot <- plot_binder_tpm(cd19_e3_tpm, cd19_e3_condition_map)
+cd19_e3_tpm_plot
+cowplot::ggsave2(cd19_e3_tpm_plot, file = "../plots/tpm_CD19_e3_all_nM.pdf", width = 3.5, height = 1.3)
 
 
 
