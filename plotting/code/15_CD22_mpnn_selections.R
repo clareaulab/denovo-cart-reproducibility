@@ -21,6 +21,7 @@ p0 <- ggplot(dt %>% arrange(cl_redesign), aes(x = Average_dSASA, y = Average_n_I
   scale_color_manual(values = c("dodgerblue3", "lightblue", "firebrick", "lightpink" )) + 
   pretty_plot(fontsize = 8) + L_border() + 
   theme(legend.position = "none")
+p0
 
 parental %>% filter(what %in% c("binder_seq_net_charge", "n_hydrophobic_residues"))
 
@@ -30,6 +31,7 @@ p1 <- ggplot(shuf(dt) %>% arrange(cl_redesign), aes(x = binder_seq_net_charge, y
   scale_color_manual(values = c("dodgerblue3", "lightblue", "firebrick", "lightpink" )) + 
   pretty_plot(fontsize = 8) + L_border() + 
   theme(legend.position = "none")
+p1
 
 cowplot::ggsave2(cowplot::plot_grid(p0, p1, nrow = 1), 
                  file = "../plots/cd22_mpnn_diversity.pdf", width = 3.3, height = 1.6)

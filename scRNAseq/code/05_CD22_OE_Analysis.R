@@ -502,20 +502,39 @@ library(BuenColors)
 #   "BCMA_Abecma" = "Abecma", "BCMA_561726_WT" = "B5", "BCMA_B11_I59_int_1525" = "B5.I0",
 #   "BCMA_A2_nonint_0366" = "", "BCMA_B4_I59_nonint_1399" = ""
 #   )
-cd22_so_oe_tumor_filtered@meta.data$binder_name = factor(cd22_so_oe_tumor_filtered@meta.data$binder_name,levels = c(
-  "CD22_m971","CD22_i61_2","CD22_B1_nonint_2261","CD22_A3_nonint_4434","CD22_A11_int_1411"
+cd22_so_oe_tumor_filtered@meta.data$binder_name_simple = dplyr::recode(
+  cd22_so_oe_tumor_filtered@meta.data$binder_name,
+  !!!c("CD22_m971"="m971","CD22_i61_2"="D1","CD22_B1_nonint_2261"="D1.N1",
+    "CD22_A3_nonint_4434"="D1.N0","CD22_A11_int_1411"="D1.I3"),
+  .default = cd22_so_oe_tumor_filtered@meta.data$binder_name
+)
+cd22_so_oe_tumor_filtered@meta.data$binder_name_simple = factor(
+  cd22_so_oe_tumor_filtered@meta.data$binder_name_simple,
+  levels = c(
+  "m971","D1","D1.N0","D1.N1","D1.I3"
 ))
 
+## Alternative color scheme
+cd22_color_mapping <- c(
+  "m971" = "#d62728",#"#8B0000",
+  "D1" = "#2CA02C",
+  "D1.N0" = "#176017",
+  "D1.N1" = "#FFD700",
+  "D1.I3" = "orange"
+)
+
 cd22_oe_module_score_boxplot = ggplot(cd22_so_oe_tumor_filtered@meta.data,
-                                   aes(x = binder_name, y = binder_activation6, fill=binder_name)) + 
-  geom_violin(aes(fill=binder_name)) +
-  geom_boxplot(color = "black", fill = NA, outlier.shape = NA, width = 0.6) + 
+                                   aes(x = binder_name_simple, y = binder_activation6, fill=binder_name)) + 
+  geom_violin(aes(fill=binder_name_simple),linewidth = 0.3) +
+  geom_boxplot(color = "black", fill = NA, outlier.shape = NA, width = 0.6,lwd=0.1) + 
   pretty_plot(fontsize = 8) + 
   L_border() + theme(legend.position = "none") +
   stat_compare_means(
-    comparisons = list(c("CD22_m971","CD22_i61_2"),c("CD22_i61_2","CD22_A3_nonint_4434"))
-  ) #+
-#scale_fill_manual(values = c("orange", "black", "dodgerblue3", "firebrick", "firebrick"))
-cowplot::ggsave2("./plots/CD22_OE/minibinder_module_score.pdf",cd22_oe_module_score_boxplot,dpi=300,width=3.3,height=1.6)
+    comparisons = list(c("m971","D1"),c("D1","D1.N0")),size = 1.5
+  ) +
+  labs(x="Binder Name",y="Activation Score") +
+  scale_fill_manual(values = cd22_color_mapping)
 cd22_oe_module_score_boxplot
+cowplot::ggsave2("../plots/CD22_OE/minibinder_module_score.pdf",cd22_oe_module_score_boxplot,dpi=300,width=1.8,height=1.6)
+
 
