@@ -41,7 +41,6 @@ p1 <- melt_df %>%
   scale_y_discrete(expand = c(0,0)) + theme(legend.position = "none") + labs(x = "BCMA MPNN Draw", y = "co-culture line") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-
 p2 <- raw_in[,c("binder_name","staining_0_nM","staining_1_nM","staining_10_nM","staining_100_nM")] %>%
   reshape2::melt(id.vars = c("binder_name")) %>%  mutate(variable = gsub("staining_", "", variable)) %>%
   mutate(variable = factor(as.character(variable), levels = rev(c("0_nM","1_nM","10_nM","100_nM")))) %>% 

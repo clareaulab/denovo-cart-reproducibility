@@ -30,6 +30,15 @@ cowplot::ggsave2(bcma_dots_simple, file = "./plots/BCMA/umap_base.png", width = 
 
 bcma_dots_simple
 
+## Check on other targets
+featuers_to_check = c(
+  "PLAUR","CD33","IL3RA","CD47","CD70","CLEC12A","HAVCR2","FLT3","CD38","BST1","CD200","LILRB4","CD70",
+)
+set2 = c(
+  "BST"
+)
+FeaturePlot(bcma_so_tumor_filtered,features = featuers_to_check)
+
 ## Draw the features
 mk_plot <- function(so,gene){
   pu <- FeaturePlot(so, features = c(gene),  
