@@ -53,7 +53,7 @@ bcma_hla_heatmap = bcma_df_merged_filtered %>%
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     strip.background = element_rect(fill = "gray90", color = "black"),
     legend.position = "none",
-    axis.text.x = element_text(angle = 45, vjust = 1, hjust=1,size = 5),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 5),
     axis.text.y = element_text(size = 5),
   ) +
   #geom_text(aes(label=`Strong Binder`),size=1) +

@@ -30,14 +30,14 @@ cowplot::ggsave2(bcma_dots_simple, file = "./plots/BCMA/umap_base.png", width = 
 
 bcma_dots_simple
 
-## Check on other targets
-featuers_to_check = c(
-  "PLAUR","CD33","IL3RA","CD47","CD70","CLEC12A","HAVCR2","FLT3","CD38","BST1","CD200","LILRB4","CD70",
-)
-set2 = c(
-  "BST"
-)
-FeaturePlot(bcma_so_tumor_filtered,features = featuers_to_check)
+# ## Check on other targets
+# featuers_to_check = c(
+#   "PLAUR","CD33","IL3RA","CD47","CD70","CLEC12A","HAVCR2","FLT3","CD38","BST1","CD200","LILRB4","CD70",
+# )
+# set2 = c(
+#   "BST"
+# )
+# FeaturePlot(bcma_so_tumor_filtered,features = featuers_to_check)
 
 ## Draw the features
 mk_plot <- function(so,gene){
@@ -55,6 +55,17 @@ bcma_feature_plots = cowplot::plot_grid(
   ncol=2,scale=1
 )
 cowplot::ggsave2(bcma_feature_plots,file="./plots/BCMA/umap_features.png",width=6*2,height=6*2, dpi=600)
+
+## Make more feature plots for supplements
+bcma_feature_plots_extended = cowplot::plot_grid(
+  mk_plot(bcma_so_tumor_filtered,"CD4"),
+  mk_plot(bcma_so_tumor_filtered,"CD8A"),
+  mk_plot(bcma_so_tumor_filtered,"GZMB"),
+  ncol=2,scale=1
+)
+bcma_feature_plots_extended
+cowplot::ggsave2(bcma_feature_plots_extended,file="../plots/BCMA/umap_features_extended.png",width=6*2,height=6*2, dpi=600)
+
 
 ## Split activated from non-activated
 Idents(bcma_so_tumor_filtered)="binder_name"
@@ -477,8 +488,69 @@ bcma_so_tumor_filtered = AddModuleScore(
 )
 
 VlnPlot(bcma_so_tumor_filtered, pt.size = 0, 
-        features = c("effector1","exhaustion2","function3","binder_activation6","binder_tonic7"),
+        features = c("effector1","exhaustion2","function3","memory4","activation5"),
         group.by = "binder_name") & geom_boxplot(outlier.shape = NA,)
+
+VlnPlot(bcma_so_tumor_filtered, pt.size = 0, 
+        features = c("IL2","GPA33"),
+        group.by = "binder_name") & geom_boxplot(outlier.shape = NA,)
+
+binder_tonic_genes
+
+VlnPlot(bcma_so_tumor_filtered,features=c("Treg"))
+
+## Plot exhaustion and function
+bcma_module_score_subset = bcma_so_tumor_filtered@meta.data[,c("binder_name_simple","effector1","exhaustion2")] %>%
+  pivot_longer(c(exhaustion2, effector1), names_to = "Metric", values_to = "Score") %>%
+  mutate(binder_name_simple = factor(binder_name_simple))
+
+library(gghalves)
+effector_data <- subset(bcma_module_score_subset, Metric == "effector1")
+exhaustion_data <- subset(bcma_module_score_subset, Metric == "exhaustion2")
+
+##
+bcma_metric_group_means = bcma_module_score_subset %>% group_by(binder_name_simple,Metric) %>% summarize(Mean_Score = mean(Score, na.rm = TRUE)) %>% arrange(Metric)
+bcma_metric_group_means_pvals = bcma_module_score_subset %>%
+  group_by(Metric) %>%
+  summarise(
+    t_test_results = list(
+      pairwise.t.test(
+        x = Score, 
+        g = binder_name_simple, 
+        p.adjust.method = "bonferroni"
+      ) %>% tidy()
+    ),
+    .groups = "drop"
+  ) %>%
+  unnest(t_test_results)
+bcma_metric_group_means_pvals
+
+bcma_exhaustion_vs_effector_scores = ggplot(bcma_module_score_subset, aes(x = binder_name_simple, y = Score, fill = Metric)) +
+  geom_half_violin(
+    data = subset(bcma_module_score_subset, Metric == "effector1"), side = "l",
+    position = position_nudge(x = -0.0), trim = TRUE#, alpha = 0.7
+  ) +
+  geom_half_violin(
+    data = subset(bcma_module_score_subset, Metric == "exhaustion2"), side = "r",
+    position = position_nudge(x = 0.0), trim = TRUE#, alpha = 0.7
+  ) +
+  # geom_boxplot(
+  #   aes(group = interaction(binder_name_simple, Metric)), width = 0.1,
+  #   outlier.shape = NA, position = position_dodge(width = 0.1)
+  # ) +
+  scale_fill_manual(
+    values = c(effector1 = "#1f78b4", exhaustion2 = "#e31a1c"),
+    labels = c("Activation (Left)","Exhaustion (Right)")
+  ) +
+  labs(
+    x = "Binder Name",
+    y = "Module Score",
+    fill = "Metric"
+  ) +
+  pretty_plot() + L_border() + theme(legend.position="none",axis.title.x = element_blank())
+bcma_exhaustion_vs_effector_scores
+cowplot::ggsave2("../plots/BCMA/bcma_module_score_comparison.pdf",bcma_exhaustion_vs_effector_scores,dpi=300,height=1.6,width=2.4)
+
 
 ## Visualize the DEG results
 highlight_volcano_genes = c("IL2","IFNG","ENTPD1","SELL")
@@ -498,6 +570,62 @@ bcma_volcano_highlight = evolved_vs_parental_capped %>%
 bcma_volcano_highlight
 cowplot::ggsave2(bcma_volcano_highlight, file = "./plots/BCMA/volcano_bcma_evolved_vs_wildtype.pdf", width = 1.5, height = 1.5)
 
+## Specifically visualize the genes highlughted int he volcano
+
+library(BuenColors)
+bcma_so_tumor_filtered@meta.data$binder_name_simple = dplyr::recode(
+  bcma_so_tumor_filtered@meta.data$binder_name,
+  !!!c("BCMA_Abecma"="Abecma","BCMA_561726_WT"="B5","BCMA_B11_I59_int_1525"="B5.I0",
+       "BCMA_A2_nonint_0366"="B5.N6","BCMA_B4_I59_nonint_1399"="B5.N9")
+)
+bcma_so_tumor_filtered@meta.data$binder_name_simple = factor(
+  bcma_so_tumor_filtered@meta.data$binder_name_simple,
+  levels = c(
+    "Abecma","B5","B5.I0","B5.N6","B5.N9"
+  ))
+bcma_so_tumor_filtered@meta.data$IL2_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IL2"), ]
+bcma_so_tumor_filtered@meta.data$IFNG_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IFNG"), ]
+
+## Alternative color scheme
+bcma_color_mapping <- c(
+  "m971" = "#FFB81C",#"#8B0000",
+  "B5" = "#D91E18",
+  "B5.I0" = "#8B0000",
+  "B5.N6" = "#9966CC",
+  "B5.N9" = "#00BFFF"
+)
+
+bcma_il2_boxplot = ggplot(bcma_so_tumor_filtered@meta.data,
+                                        aes(x = binder_name_simple, y = IL2_counts, fill=binder_name_simple)) + 
+  geom_violin(aes(fill=binder_name_simple),linewidth = 0.3) + geom_jitter(size=0.01) +
+  pretty_plot(fontsize = 8) + 
+  L_border() + 
+  labs(x="Binder Name",y="IL2") +
+  scale_fill_manual(values = bcma_color_mapping) +
+  theme(legend.position = "none", axis.title.x=element_blank())
+
+bcma_ifng_boxplot = ggplot(bcma_so_tumor_filtered@meta.data,
+                          aes(x = binder_name_simple, y = IFNG_counts, fill=binder_name_simple)) + 
+  geom_violin(aes(fill=binder_name_simple),linewidth = 0.3) + geom_jitter(size=0.01) +
+  pretty_plot(fontsize = 8) + 
+  L_border() + 
+  labs(x="Binder Name",y="IFNG") +
+  scale_fill_manual(values = bcma_color_mapping) +
+  theme(legend.position = "none", axis.title.x=element_blank())
+
+bcma_il2_ifng_violin_plot = cowplot::plot_grid(bcma_il2_boxplot,bcma_ifng_boxplot,ncol=1)
+bcma_il2_ifng_violin_plot
+cowplot::ggsave2("../plots/BCMA/bcma_il2_ifng_violin.pdf",bcma_il2_ifng_violin_plot,dpi=300,width=1.8,height=1.8)
+cowplot::ggsave2("../plots/BCMA/bcma_il2_ifng_violin.png",bcma_il2_ifng_violin_plot,dpi=300,width=1.8,height=1.8)
+
+
+VlnPlot(bcma_so_tumor_filtered,features=c("IL2","IFNG"))
+
+combined_module_score_plots = cowplot::plot_grid(
+  cd22_oe_module_score_boxplot,cd22_rpmi_module_score_boxplot,ncol=1
+)
+combined_module_score_plots
+cowplot::ggsave2("../plots/CD22_OE_RPMI_Activation_Scores.pdf",combined_module_score_plots,dpi=300,width=1.8,height=1.8)
 
 
 library(BuenColors)
@@ -641,8 +769,8 @@ DotPlot(bcma_so_tumor_filtered,features = t_cell_features)
 ## Unused ASA scores
 
 ## Load starCAR outputs
-bcma_so_starCAT_programs = read.table(paste0("./data/starCAT/BCMA_output/bcma.rf_usage_normalized.txt"))
-bcma_so_starCAT_scores = read.table(paste0("./data/starCAT/BCMA_output/bcma.scores.txt"))
+bcma_so_starCAT_programs = read.table(paste0("../data/starCAT/BCMA_output/bcma.rf_usage_normalized.txt"))
+bcma_so_starCAT_scores = read.table(paste0("../data/starCAT/BCMA_output/bcma.scores.txt"))
 bcma_so_tumor_filtered = bcma_so_tumor_filtered %>%
   AddMetaData(metadata = bcma_so_starCAT_programs) %>%
   AddMetaData(metadata = bcma_so_starCAT_scores)

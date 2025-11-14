@@ -97,6 +97,6 @@ cor.test(bcma_df_filtered$Average_dSASA, bcma_df_filtered$overall_activity_diff,
 
 bcma_correlations = cowplot::plot_grid(p1,p2,p3,p4,ncol=4)
 
-cowplot::ggsave2(bcma_correlations, file = "../plots/bcma_mpnn_correlations.pdf", width = 1.7*4, height = 1.8)
+cowplot::ggsave2(bcma_correlations, file = "../plots/bcma_mpnn_correlations.pdf", width = 1.7*4, height = 1.6)
 
 

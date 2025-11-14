@@ -43,6 +43,32 @@ dt = dt %>% mutate(
   high_tonic = coculture.CAR.Only > 25
 )
 
+dim(dt)
+
+# dt = dt %>%
+#   mutate(
+#     sequence_length = str_length(binder_sequence),
+#     alanine_count = str_count(binder_sequence, 'A'),
+#     #triple_alanine_count = str_count(binder_sequence, 'AAA'),
+#     leucine_count = str_count(binder_sequence, 'L'),
+#     alanine_percentage = (alanine_count / sequence_length) * 100,
+#     leucine_percentage = (leucine_count / sequence_length) * 100,
+#     is_bindcraft = str_detect(campaign,"Bind")
+#   )
+# 
+# ggplot(data=dt,aes(y=fct_reorder(campaign,is_bindcraft),x=alanine_count,color=binder_by_YSD_1000nM)) + 
+#   geom_jitter()
+# 
+# ggplot(data=dt %>% filter(alanine_count < 10, Average_monomer_lDDT > 80),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_100nM)) + 
+#   geom_jitter() +
+#   geom_boxplot() + 
+#   geom_vline(xintercept=0.85)
+# 
+# ggplot(data=dt %>% filter(Average_monomer_lDDT > 80, alanine_percentage < 20),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_1000nM)) + 
+#   geom_jitter() + 
+#   geom_vline(xintercept=0.85)
+
+
 # find_significant_diffs <- function(df, group_col, alpha = 0.05) {
 #   # Get numeric columns (excluding the grouping column)
 #   num_cols <- names(df)[sapply(df, is.numeric) & names(df) != group_col]

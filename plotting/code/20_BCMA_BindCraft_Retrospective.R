@@ -78,27 +78,51 @@ correlation_results = correlation_results %>% mutate(
 
 correlation_results = correlation_results %>% mutate(padj = p.adjust(P_Value, method = "BH"))
 filtered_results <- correlation_results %>%
-  dplyr::filter(!is.na(Feature) & !is.na(Spearman_Rho))
+  dplyr::filter(!is.na(Feature) & !is.na(Spearman_Rho)) %>%
+  mutate(rho_rank = rank(-Spearman_Rho))
 
 bcma_bc_feature_plot = ggplot(filtered_results, # Use the filtered data frame
-                              aes(x = forcats::fct_reorder(Feature, -Spearman_Rho), 
+                              aes(x = rho_rank, 
                                   y = Spearman_Rho, 
-                                  fill=pval<0.05)) + 
-  geom_bar(stat = "identity") + 
-  labs(x = "BindCraft Features", y = "Activity Gain Correlation") +
+                                  fill=P_Value<0.05)) + 
+  #geom_bar(stat=aes(Feature)) +
+  geom_bar(stat = "identity",color = "black") + 
+  labs(x = "Rank Ordered Features", y = "Activity Gain Correlation") +
   pretty_plot(fontsize = 8) + L_border() +
   scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "dodgerblue3"),name = "Direction") +
   theme(
     legend.position = "none",
-    axis.ticks.x = element_blank(),
-    axis.text.x = element_blank(),
+    #axis.ticks.x = element_blank(),
+    #axis.text.x = element_blank(),
     axis.line = element_line(colour = 'black', size = 0.5),
-    )
+    ) +
+  scale_x_continuous(breaks = c(1,35)) 
+
 
 bcma_bc_feature_plot
 cowplot::ggsave2(bcma_bc_feature_plot, file = "../plots/bcma_bc_feature_plot.pdf", width = 1.8, height = 1.8)
 cowplot::ggsave2(bcma_bc_feature_plot, file = "../plots/bcma_bc_feature_plot.pdf", width = 1.7, height = 1.4, units = "in")
 
+bcma_bc_feature_dot_plot = ggplot(filtered_results, # Use the filtered data frame
+                              aes(x = rho_rank, 
+                                  y = Spearman_Rho, 
+                                  color=P_Value<0.05)) + 
+  #geom_bar(stat=aes(Feature)) +
+  geom_point() +
+  labs(x = "Rank Ordered Features", y = "Activity Gain Correlation") +
+  pretty_plot(fontsize = 8) + L_border() +
+  scale_color_manual(values = c("FALSE" = "gray", "TRUE" = "dodgerblue3"),name = "Direction") +
+  theme(
+    legend.position = "none",
+    #axis.ticks.x = element_blank(),
+    #axis.text.x = element_blank(),
+    axis.line = element_line(colour = 'black', size = 0.5),
+  ) +
+  scale_x_continuous(breaks = c(1,35)) 
+bcma_bc_feature_dot_plot
+
+bcma_bc_feature_dot_plot
+cowplot::ggsave2(bcma_bc_feature_dot_plot, file = "../plots/bcma_bc_feature_dot_plot.pdf", width = 1.8, height = 1.8)
 
 ## Now focus on the dSASA association
 bcma_car_df_filtered = bcma_car_df %>% filter(grepl("BCMA",binder_name))

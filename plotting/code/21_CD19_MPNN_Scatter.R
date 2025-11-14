@@ -61,8 +61,8 @@ dt_activate$activity_gain_0.1nM <- dt_activate$CD69_0.1_nM - dt_activate$CD69_0_
 dt_activate_merged = merge(dt_activate,dt_draws,by="binder_unique_id",all.x=TRUE)
 dt_activate_merged <- dt_activate_merged %>% distinct(binder_unique_id,.keep_all = TRUE)
 
-
-s1 = ggplot(dt_draws_filtered%>% filter(staining_10_nM >80), aes(x = staining_10_nM, y = activity_gain,color = binder_label)) +
+dt_draws_filtered
+s1 = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = activity_gain,color = binder_label)) +
   #geom_line(aes(group = binder_id), alpha = 0.6) +
   geom_point(size = 1) +
   scale_color_manual(
@@ -80,7 +80,30 @@ s1 = ggplot(dt_draws_filtered%>% filter(staining_10_nM >80), aes(x = staining_10
   #geom_text(aes(label=binder_unique_id)) +
   ylim(0,100) + xlim(0,100)
 
-s1
+s1_alt = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = coculture_Ramos-coculture_CAR_Only,color = binder_label)) +
+  #geom_line(aes(group = binder_id), alpha = 0.6) +
+  geom_point(size = 1) +
+  scale_color_manual(
+    values = c("FMC63" = "orange",
+               "CD19 l115" = "dodgerblue3",
+               "Parental (l115)" = "dodgerblue",
+               "CD19 l112" = "firebrick3",
+               "Parental (l112)" = "firebrick1",
+               "Control" == "gray"
+    )) +
+  #geom_abline(slope=1, intercept=0, linetype="dashed", color="gray") +
+  labs(x = "Staining with 10nM (hr1)",y = "Ramos Activity Gain") +
+  pretty_plot(fontsize = 8) + L_border() + 
+  theme(legend.position = "none") +
+  ylim(0,100)
+  #geom_text_repel(data=dt_draws_filtered %>% filter(staining_10_nM > 50),aes(label=binder_unique_id),max.overlaps = Inf)
+  #geom_text(aes(label=binder_unique_id))
+  #ylim(0,100) + xlim(0,100)
+
+## Ramos look good
+s1_alt
+cowplot::ggsave2("../plots/CD19_10nM_hr1_vs_Ramos_gain_coculture.pdf",s1_alt,dpi=300,height=1.6,width=1.6)
+
 
 dt_draws_filtered %>% arrange(-activity_gain)
 dt_draws_filtered %>% filter(binder_unique_id=="CD19_l115_nonint_3533")
@@ -107,6 +130,26 @@ t2 = ggplot(dt_activate_merged, aes(x = strep_10_nM, y = activity_gain_10nM,colo
   ylim(0,100)
 t2
 cowplot::ggsave2("../plots/CD19_10nM_hr24_vs_activity_gain_recomb_cd19.pdf",t2,dpi=300,height=1.6,width=1.6)
+
+t2_alt = ggplot(dt_activate_merged, aes(x = strep_10_nM, y = activity_gain_10nM,color = binder_label)) +
+  geom_point(size = 1) +
+  scale_color_manual(
+    values = c("FMC63" = "orange",
+               "CD19 l115" = "dodgerblue3",
+               "Parental (l115)" = "dodgerblue",
+               "CD19 l112" = "firebrick3",
+               "Parental (l112)" = "firebrick1",
+               "Control" == "gray"
+    )) +
+  #geom_abline(slope=1, intercept=0, linetype="dashed", color="gray") +
+  labs(x = "Staining with 10nM (hr24)",y = "Recomb. CD19 (10nM) Activity Gain") +
+  pretty_plot(fontsize = 8) + L_border() + 
+  #geom_text(aes(label=binder_unique_id)) +
+  #geom_hline(mean(dt_activate_merged$activity_gain_10nM)) +
+  theme(legend.position = "none") +
+  ylim(0,100)
+t2_alt
+
 
 s1 | t2
 
@@ -329,7 +372,7 @@ t1 = ggplot(dt_activate_merged, aes(x = strep_1_nM, y = activity_gain,color = bi
   theme(legend.position = "none") + 
   ylim(0,100)
 
-
+t1
 
 s1 | t2
 
