@@ -4,7 +4,7 @@ library(data.table)
 library(yardstick)
 
 #dt = fread("../data/2025_10_24_all_binders_with_labels.csv") %>% data.frame()
-dt = fread("../data/2025_11_02_all_binders_with_labels.csv") %>% data.frame()
+dt = fread("../data/2025_11_15_all_binders_with_labels.csv") %>% data.frame()
 
 dt = dt %>% mutate(
   binder_by_YSD_1000nM = as.factor(binder_by_YSD_1000nM),
@@ -45,29 +45,55 @@ dt = dt %>% mutate(
 
 dim(dt)
 
-# dt = dt %>%
-#   mutate(
-#     sequence_length = str_length(binder_sequence),
-#     alanine_count = str_count(binder_sequence, 'A'),
-#     #triple_alanine_count = str_count(binder_sequence, 'AAA'),
-#     leucine_count = str_count(binder_sequence, 'L'),
-#     alanine_percentage = (alanine_count / sequence_length) * 100,
-#     leucine_percentage = (leucine_count / sequence_length) * 100,
-#     is_bindcraft = str_detect(campaign,"Bind")
-#   )
-# 
-# ggplot(data=dt,aes(y=fct_reorder(campaign,is_bindcraft),x=alanine_count,color=binder_by_YSD_1000nM)) + 
-#   geom_jitter()
-# 
-# ggplot(data=dt %>% filter(alanine_count < 10, Average_monomer_lDDT > 80),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_100nM)) + 
-#   geom_jitter() +
-#   geom_boxplot() + 
-#   geom_vline(xintercept=0.85)
-# 
-# ggplot(data=dt %>% filter(Average_monomer_lDDT > 80, alanine_percentage < 20),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_1000nM)) + 
-#   geom_jitter() + 
-#   geom_vline(xintercept=0.85)
+## Check alanine percentage
+dt = dt %>%
+  mutate(
+    sequence_length = str_length(binder_sequence),
+    alanine_count = str_count(binder_sequence, 'A'),
+    leucine_count = str_count(binder_sequence, 'L'),
+    alanine_percentage = (alanine_count / sequence_length) * 100,
+    leucine_percentage = (leucine_count / sequence_length) * 100,
+    is_bindcraft = str_detect(campaign,"Bind"),
+  )
 
+dt$campaign_short_replaced = str_replace_all(dt$campaign_short, " \\(", "\n(")
+
+dt_ysd = dt %>% filter(!is.na(binder_by_YSD_1000nM))
+
+dt$campaign_short_replaced = factor(dt$campaign_short_replaced,levels=c(
+  "RFD 1\n(BCMA)","RFD 2\n(BCMA)","RFD 3\n(BCMA)","RFD 4\n(BCMA)","RFD 5\n(BCMA)","BC 1\n(BCMA)",
+  "RFD 1\n(CD19)","RFD 2\n(CD19)","RFD 3\n(CD19)","RFD 4\n(CD19)","BC 1\n(CD19)","BC 2\n(CD19)",
+  "RFD 1\n(CD22)", "BC 1\n(CD22)"
+))
+
+table(dt$campaign)
+
+dt_ysd = dt %>% filter(!is.na(binder_by_YSD_1000nM))
+## Alanine plot
+ala_plot = ggplot(dt_ysd %>% arrange(binder_by_YSD_1000nM), aes(x = campaign_short_replaced, y=alanine_percentage, color=binder_by_YSD_1000nM)) +
+  geom_quasirandom(size = 0.5) +
+  geom_boxplot(color = "black", outlier.shape = NA, width = 0.6) + 
+  pretty_plot(fontsize = 8) + 
+  L_border() +
+  scale_color_manual(values = c("gray", "firebrick")) + 
+  labs(x="Yeast Campaign",y="% Alanine in Sequence") +
+  theme(legend.position = "none")
+#scale_color_manual(values = c("dodgerblue3", "lightblue", "firebrick", "lightpink", "forestgreen","palegreen")) +
+#labs(y="NetMHC Class I Burden",x="Antigen")
+ala_plot
+
+cowplot::ggsave2("../plots/alanine_percentages_by_campaign.pdf",ala_plot,dpi=300,width=6.5,height=1.8,unit="in")
+
+ggplot(data=dt %>% filter(alanine_count < 10, Average_monomer_lDDT > 80),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_100nM)) +
+  geom_jitter() +
+  geom_boxplot() +
+  geom_vline(xintercept=0.85)
+
+ggplot(data=dt %>% filter(Average_monomer_lDDT > 80, alanine_percentage < 20),aes(y=campaign,x=Average_ipSAE,color=binder_by_YSD_1000nM)) +
+  geom_jitter() +
+  geom_vline(xintercept=0.85)
+
+ggplot(dt %>% arrange(binder_by_YSD_1000nM),aes(x=alanine_percentage,y=Average_Binder_BetaSheet.,color=binder_by_YSD_1000nM)) + geom_point()
 
 # find_significant_diffs <- function(df, group_col, alpha = 0.05) {
 #   # Get numeric columns (excluding the grouping column)
@@ -397,6 +423,40 @@ ipSAE_success_rate_plot
 ## The fisher pvalues are added in illustrator
 ipSAE_fisher_results
 cowplot::ggsave2("../plots/mpnn_ipSAE_prop_test.pdf",ipSAE_success_rate_plot,height=1.6,width=1.8)
+
+ipSAE_success_rate_plot_short = ipSAE_success_rate_plot +
+  theme(axis.text.x = element_blank(),axis.title = element_blank()) +
+  scale_y_continuous(expand = c(0, 0))
+ipSAE_success_rate_plot_short
+cowplot::ggsave2("../plots/mpnn_ipSAE_prop_small.pdf",ipSAE_success_rate_plot_short,height=0.4,width=1.6)
+
+## Do fisher for YSD
+ysd_short_filtered = dt %>% 
+  filter(campaign_short %in% c("BC 1 (BCMA)", "RFD 5 (BCMA)","BC 2 (CD19)","BC 1 (CD22)"))
+ipSAE_ysd_success_comparison = ysd_short_filtered %>%
+  mutate(campaign_short = factor(ysd_short_filtered$campaign_short,levels=c("BC 1 (BCMA)", "RFD 5 (BCMA)","BC 2 (CD19)","BC 1 (CD22)"))) %>%
+  group_by(campaign_short,above_ipSAE_85) %>% 
+  summarise(success_rate=mean(binder_by_YSD_1000nM==TRUE, na.rm=TRUE))
+
+ipSAE_ysd_success_rate_plot = ggplot(ipSAE_ysd_success_comparison, aes(x = campaign_short, y = success_rate * 100, fill = above_ipSAE_85)) +
+  geom_bar(stat = "identity", position = "dodge",color="black") +
+  pretty_plot(fontsize = 8) + L_border() +
+  scale_fill_manual(values=c("gray","firebrick3")) +
+  theme(legend.position = "none") + labs(x="Campaign",y="% Enriched (<1000nM)")
+
+ipSAE_ysd_success_rate_plot_short = ipSAE_ysd_success_rate_plot +
+  theme(axis.text.x = element_blank(),axis.title = element_blank()) +
+  scale_y_continuous(expand = c(0, 0))
+ipSAE_ysd_success_rate_plot_short
+
+cowplot::ggsave2("../plots/ysd_ipSAE_prop_small.pdf",ipSAE_ysd_success_rate_plot_short,height=0.4,width=1.6)
+
+ipSAE_ysd_fisher_results = dt %>%
+  filter(campaign_short %in% c("BC 1 (BCMA)","BC 2 (CD19)","BC 1 (CD22)", "RFD 5 (BCMA)")) %>%
+  group_by(campaign_short) %>%
+  summarise(fisher_pval = fisher.test(table(above_ipSAE_85, binder_by_YSD_1000nM))$p.value)
+
+ipSAE_ysd_fisher_results
 
 # ## Check the correlation between Kd and CAR activity gain
 # ## Show BCMA and CD22 since those were actual coculture hits

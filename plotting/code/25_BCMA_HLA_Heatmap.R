@@ -33,10 +33,14 @@ allele_levels = bcma_df_merged_filtered %>%
 bcma_df_merged_filtered <- bcma_df_merged_filtered %>%
   mutate(
     Allele = factor(Allele, levels = allele_levels),
-  )
+  ) %>%
+  mutate(Allele_Formatted = sub("^HLA-([A-Z])", "\\1:", Allele)) %>%
+  mutate(Allele_Formatted = sub("([0-9]{2})([0-9]{2})$", "\\1*\\2", Allele_Formatted))
+
+bcma_df_merged_filtered$Allele_Formatted
 
 bcma_hla_heatmap = bcma_df_merged_filtered %>%
-  ggplot(aes(y = new_name_final, x = Allele, fill = `Strong Binder`)) +
+  ggplot(aes(y = new_name_final, x = Allele_Formatted, fill = `Strong Binder`)) +
   geom_tile(aes(fill = `Strong Binder`),color = "black") +
   #facet_wrap(~what) +
   scale_fill_gradientn(

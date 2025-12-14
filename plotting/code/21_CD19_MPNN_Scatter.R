@@ -80,7 +80,8 @@ s1 = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = activity_gain,color 
   #geom_text(aes(label=binder_unique_id)) +
   ylim(0,100) + xlim(0,100)
 
-s1_alt = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = coculture_Ramos-coculture_CAR_Only,color = binder_label)) +
+dt_draws_filtered$ramos_gain = dt_draws_filtered$coculture_Ramos - dt_draws_filtered$coculture_CAR_Only
+s1_alt = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = ramos_gain,color = binder_label)) +
   #geom_line(aes(group = binder_id), alpha = 0.6) +
   geom_point(size = 1) +
   scale_color_manual(
@@ -100,7 +101,6 @@ s1_alt = ggplot(dt_draws_filtered , aes(x = staining_10_nM, y = coculture_Ramos-
   #geom_text(aes(label=binder_unique_id))
   #ylim(0,100) + xlim(0,100)
 
-## Ramos look good
 s1_alt
 cowplot::ggsave2("../plots/CD19_10nM_hr1_vs_Ramos_gain_coculture.pdf",s1_alt,dpi=300,height=1.6,width=1.6)
 

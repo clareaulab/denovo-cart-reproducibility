@@ -93,15 +93,18 @@ bcma_bc_feature_plot = ggplot(filtered_results, # Use the filtered data frame
   theme(
     legend.position = "none",
     #axis.ticks.x = element_blank(),
-    #axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y=element_blank(),
     axis.line = element_line(colour = 'black', size = 0.5),
     ) +
-  scale_x_continuous(breaks = c(1,35)) 
+  scale_x_continuous(breaks = c(1,35),expand = c(0, 0)) #+
+  #labs()
+  #scale_x_discrete(expand = c(0, 0))
 
 
 bcma_bc_feature_plot
 cowplot::ggsave2(bcma_bc_feature_plot, file = "../plots/bcma_bc_feature_plot.pdf", width = 1.8, height = 1.8)
-cowplot::ggsave2(bcma_bc_feature_plot, file = "../plots/bcma_bc_feature_plot.pdf", width = 1.7, height = 1.4, units = "in")
+cowplot::ggsave2(bcma_bc_feature_plot, file = "../plots/bcma_bc_feature_plot.pdf", width = 1.6, height = 1.3, units = "in")
 
 bcma_bc_feature_dot_plot = ggplot(filtered_results, # Use the filtered data frame
                               aes(x = rho_rank, 
