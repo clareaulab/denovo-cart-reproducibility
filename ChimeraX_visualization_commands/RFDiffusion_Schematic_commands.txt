@@ -1,0 +1,74 @@
+
+##### Doing both BC and RFDiffusion
+## Load order
+## 1. BCMA_l57_s684317_mpnn1_model2.pdb
+## 2. frame_005.pdb
+## 3. frame_008.pdb
+## 4. BCMAlarge_1xu2_R17-R26-R35_75-90_i20_161_dldesign_1_af2pred.pdb
+## 5. BCMAlarge_1xu2_R17-R26-R35_75-90_i20_161_Xt-1_traj.pdb
+
+## The BC trajectories should already be pre-aligned
+## Matching RFD BCMA to BC BCMA
+mm #4/B to #1/A
+mm #5/B to #1/A
+
+## Hide everything for clean slate
+hide cartoon
+
+## Set the background
+graphics silhouettes true
+lighting soft
+lighting shadows false
+set bgColor white
+
+## Start with BindCraft ones
+show #1 cartoon
+color #1/A gray 
+show #1/A surface
+transparency #1/A 70
+color #1/B blue
+
+## Save this as the final state for BC
+hide #1/B cartoon
+
+## Now we do other steps of the hallucination process
+show #2/B atoms
+style #2/B sphere
+size #2/B atomRadius 0.5
+color #2/B orange
+
+## Save this as the initial state for BC
+hide #2/B  
+
+show #3/B atoms
+style #3/B sphere
+size #3/B atomRadius 0.5
+color #3/B skyblue
+
+## Save this as the middle state for BC
+hide #3/B
+
+## Now we do the RFDiffusion ones
+
+## Show final RFDiffusion structure
+show #4/A cartoon
+rainbow #4/A
+## Save this as the final state for RFDiffusion
+hide #4/A cartoon
+
+## Show 1.15 alpha-carbons
+show #5.15/A@ca
+hide #5.15/A@ca pbonds
+rainbow #5.15/A@ca
+style #5.15/A@ca sphere
+size #5.15/A@ca atomRadius 0.5
+## Save this as the initial state for RFDiffusion
+hide #5.15
+
+## Show 1.05 alpha-carbons
+show #5.05/A@ca
+hide #5.05/A@ca pbonds
+rainbow #5.05/A@ca
+style #5.05/A@ca sphere
+size #5.05/A@ca atomRadius 0.5
+hide #5.05

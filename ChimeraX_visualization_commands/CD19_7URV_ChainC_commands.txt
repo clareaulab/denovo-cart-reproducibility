@@ -1,0 +1,18 @@
+# After loading 7urv
+hide all
+
+show #1/C cartoon
+
+show #1/C surface
+
+color #1/C gray
+
+transparency #1/C 70
+
+graphics silhouettes true
+
+lighting soft
+
+lighting shadows false
+
+set bgColor white

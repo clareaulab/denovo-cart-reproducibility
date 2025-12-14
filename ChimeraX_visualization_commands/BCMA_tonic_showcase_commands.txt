@@ -1,0 +1,68 @@
+# After loading all PDBs in the show case directory
+# BCMA_l59_int_wildtype__BCMA_model_0.pdb
+# BCMA_l59_nonint_1399__BCMA_model_0.pdb
+# BCMA_l59_int_1568__BCMA_model_0.pdb
+# BCMA_l59_nonint_0840__BCMA_model_0.pdb# BCMA_l59_int_1038__BCMA_model_0.pdb
+
+## Align on chain B (BCMA)
+mm #2-5/B to #1/B
+
+## Calculate electrostatic
+coulombic
+
+## Graph the outline of(silhouette)
+graphics silhouettes true
+
+## Use the soft lighting mode
+lighting soft
+
+## Making sure shadows are off
+lighting shadows false
+
+## Make sure the background is white
+set bgColor white
+
+## Hide all and restart
+hide all surfaces
+hide all cartoons
+
+## Hide BCMA for all but the first PDB
+show #1/A surface
+show #1/B cartoon
+color #1/B gray
+## Save snapshot here
+hide #1 surfaces
+hide #1 cartoons
+
+## Show second
+show #2/A surface
+show #2/B cartoon
+color #2/B gray
+## Save snapshot here
+hide #2 surfaces
+hide #2 cartoons
+
+## Show Third
+show #3/A surface
+show #3/B cartoon
+color #3/B gray
+## Save snapshot here
+hide #3 surfaces
+hide #3 cartoons
+
+## Show Fourth
+show #4/A surface
+show #4/B cartoon
+color #4/B gray
+## Save snapshot here
+hide #4 surfaces
+hide #4 cartoons
+
+## Show Fifth
+show #5/A surface
+show #5/B cartoon
+color #5/B gray
+## Save snapshot here
+hide #5 surfaces
+hide #5 cartoons
+

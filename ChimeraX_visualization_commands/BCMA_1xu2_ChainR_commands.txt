@@ -1,0 +1,18 @@
+# After loading 1xu2
+hide all
+
+show #1/R cartoon
+
+show #1/R surface
+
+color #1/R gray
+
+transparency #1/R 70
+
+graphics silhouettes true
+
+lighting soft
+
+lighting shadows false
+
+set bgColor white

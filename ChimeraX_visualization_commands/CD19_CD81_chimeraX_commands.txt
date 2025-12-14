@@ -1,0 +1,41 @@
+# After loading 7jic
+
+## Color in CD19
+
+color #1/A gray
+surface #1/A
+transparency #1/A 40
+
+## Programmatically generated interface residues for CD81 on CD19
+select #1/A:31 #1/A:32 #1/A:33 #1/A:34 #1/A:35 #1/A:36 #1/A:37 #1/A:38 #1/A:39 #1/A:79 #1/A:80 #1/A:81 #1/A:82 #1/A:83 #1/A:84 #1/A:85 #1/A:86 #1/A:87 #1/A:109 #1/A:110 #1/A:111 #1/A:112 #1/A:113 #1/A:185 #1/A:186 #1/A:187 #1/A:188 #1/A:189 #1/A:190 #1/A:191 #1/A:192 #1/A:193 #1/A:194 #1/A:195 #1/A:196 #1/A:197 #1/A:198 #1/A:199 #1/A:201 #1/A:202 #1/A:203 #1/A:204 #1/A:205 #1/A:238 #1/A:239 #1/A:240 #1/A:241 #1/A:242 #1/A:243 #1/A:244 #1/A:245 #1/A:246 #1/A:247 #1/A:248 #1/A:249 #1/A:290 #1/A:291 #1/A:292 #1/A:293 #1/A:294 #1/A:295 #1/A:296 #1/A:297 #1/A:298 #1/A:299 #1/A:300 #1/A:301 #1/A:302 #1/A:303 #1/A:304 #1/A:305 #1/A:309 #1/A:310 #1/A:311 #1/A:312 #1/A:313
+
+color sel green
+
+## Programmatically generated interface residues for FMC63 on CD19
+select #1/A:65 #1/A:66 #1/A:67 #1/A:68 #1/A:69 #1/A:88 #1/A:89 #1/A:90 #1/A:91 #1/A:92 #1/A:155 #1/A:156 #1/A:157 #1/A:158 #1/A:159 #1/A:160 #1/A:161 #1/A:162 #1/A:163 #1/A:164 #1/A:165 #1/A:166 #1/A:167 #1/A:216 #1/A:217 #1/A:218 #1/A:219 #1/A:220 #1/A:221 #1/A:222 #1/A:223 #1/A:224 #1/A:225 #1/A:226
+
+color sel orange
+
+## Color in VhVl
+
+color #1/H brown
+color #1/L purple
+
+## color in CD81
+
+color #1/B blue
+
+## Overall style optimization
+
+lighting soft
+graphics silhouette true
+lighting shadows false
+
+set bgcolor white
+
+## Remove the pseudo bonds
+hide pbonds
+
+## Remove the transmembrane parts
+hide #1/A:292-318 cartoon
+hide #1/A:292-318 surface

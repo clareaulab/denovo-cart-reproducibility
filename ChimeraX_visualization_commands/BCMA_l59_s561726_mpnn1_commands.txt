@@ -1,0 +1,17 @@
+# After loading BCMA_l59_s561726_mpnn1_model2.pdb
+set bgColor white
+
+color #1/A gray
+show #1/A surface
+transparency #1/A 70
+
+color #1/B green
+graphics silhouettes true
+lighting soft
+lighting shadows false
+
+## Add these commands to show monomer only
+hide #1/A surface
+hide #1/A cartoon
+
+

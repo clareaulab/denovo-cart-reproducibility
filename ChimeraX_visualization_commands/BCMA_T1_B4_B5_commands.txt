@@ -1,0 +1,53 @@
+##### Load B4 and B5, align on BCMA, then save individual ones
+## Load order
+## 1. L1.pdb
+## 2. T1.pdb
+## 3. B4.pdb
+## 4. B5.pdb
+
+## Matching BCMA
+mm #2/A to #1/A
+mm #3/A to #1/A
+mm #4/A to #1/A
+
+## Set the alphafold color scheme
+color bfactor palette alphafold
+
+## Adjust graphics
+graphics silhouettes true
+lighting soft
+lighting shadows false
+set bgColor white
+
+## Set BCMA to gray and show surface
+color #1-4/A gray
+show #1-4/A surface
+transparency #1-4/A 70
+## Session is saved here after adjusting camera angles
+
+## After adjusting camera angles
+hide #2-4 cartoon
+hide #2-4 surface
+## Screenshot L1 here
+
+## Hide number 1 and show number 2
+hide #1 cartoon
+hide #1 surface
+show #2 cartoon
+show #2/A surface
+## Screenshot T1 here
+
+## Hide number 2 and show number 3
+hide #2 cartoon
+hide #2 surface
+show #3 cartoon
+show #3/A surface
+## Screenshot B4 here
+
+## Hide number 3 and show number 4
+hide #3 cartoon
+hide #3 surface
+show #4 cartoon
+show #4/A surface
+## Screenshot B4 here
+

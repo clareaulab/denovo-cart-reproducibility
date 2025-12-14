@@ -1,0 +1,20 @@
+# After loading 7O52
+hide all
+hide all cartoon
+
+
+show #1/U cartoon
+show #1/U surface
+
+color #1/R gray
+
+transparency #1/U 70
+
+graphics silhouettes true
+
+lighting soft
+
+lighting shadows false
+
+set bgColor white
+

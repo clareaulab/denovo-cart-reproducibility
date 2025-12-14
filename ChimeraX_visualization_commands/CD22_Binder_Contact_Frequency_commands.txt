@@ -1,0 +1,24 @@
+# After loading CD22_l61_s819258_mpnn2_contact_assigned_chain_A_removed.pdb
+
+show surface
+# Assign b-factor (Frequency)
+color byattribute bfactor palette white:orange
+
+
+# Assign hydrophobicity
+mlp
+
+# Assign electrostatic
+coulombic
+
+transparency #1/B 70
+
+# lighting flat
+
+
+# Makes things look nice
+graphics silhouettes true
+lighting soft
+lighting shadows false
+set bgColor white
+
