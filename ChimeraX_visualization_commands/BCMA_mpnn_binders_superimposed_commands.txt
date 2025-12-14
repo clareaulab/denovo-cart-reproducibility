@@ -1,0 +1,54 @@
+# After loading all PDBs (Make sure parental is the first one loaded)
+
+## Align on chain B (BCMA)
+mm #2-25/B to #1/B
+
+## Hide BCMA for all but the first PDB
+hide #2-25/B cartoon
+
+## Makes it gray
+color #1/B gray
+
+## Show the surface
+show #1/B surface
+
+## Make it transparent
+transparency #1/B 70
+
+## Graph the outline of(silhouette)
+graphics silhouettes true
+
+## Use the soft lighting mode
+lighting soft
+
+## Making sure shadows are off
+lighting shadows false
+
+## Make sure the background is white
+set bgColor white
+
+### To show the interface residues 
+hide #2-26 cartoon
+
+## Make color consistent with the color from another figure
+color #1/A teal
+
+### select the interface residues
+select #1/A:12 #1/A:13 #1/A:16 #1/A:17 #1/A:20 #1/A:23 #1/A:24 #1/A:30 #1/A:31 #1/A:37 #1/A:40 #1/A:41 #1/A:44 #1/A:45 #1/A:47 #1/A:48 #1/A:51 #1/A:52 #1/A:55
+
+show sel atoms
+color sel red
+
+## To show the non-interface residues
+## Revert back to the state before coloring
+hide #1/A atoms
+color #1/A teal
+
+### select the non-interface residues
+select #1/A:1 #1/A:2 #1/A:3 #1/A:4 #1/A:5 #1/A:6 #1/A:7 #1/A:8 #1/A:9 #1/A:10 #1/A:11 #1/A:14 #1/A:15 #1/A:18 #1/A:19 #1/A:21 #1/A:22 #1/A:25 #1/A:26 #1/A:27 #1/A:28 #1/A:29 #1/A:32 #1/A:33 #1/A:34 #1/A:35 #1/A:36 #1/A:38 #1/A:39 #1/A:42 #1/A:43 #1/A:46 #1/A:49 #1/A:50 #1/A:53 #1/A:54 #1/A:56 #1/A:57 #1/A:58 #1/A:59
+
+show sel atoms
+color sel blue
+
+
+

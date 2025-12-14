@@ -1,0 +1,36 @@
+## Open 7urv_7jic_superimposed.pdb
+
+## Make plot pretty
+lighting soft
+graphics silhouette true
+lighting shadows false
+set bgcolor white
+
+## Make CD19 gray
+color #1/A gray
+show #1/A surface
+transparency #1/A 40
+
+## Color in FMC63 VH VL
+color #1/D:39-145 purple
+color #1/D:146-160 orange
+color #1/D:161-280 red
+
+## Color in CD81
+color #1/B cyan
+
+## Select FMC61 contact residues (programmatically generated)
+select #1/A:161 #1/A:162 #1/A:163 #1/A:164 #1/A:165 #1/A:216 #1/A:217 #1/A:218 #1/A:219 #1/A:220 #1/A:221 #1/A:222 #1/A:223 #1/A:224 #1/A:225
+
+color sel orange
+
+## Select CD81 contact residues (programmatically generated)
+select #1/A:31 #1/A:32 #1/A:33 #1/A:34 #1/A:35 #1/A:36 #1/A:37 #1/A:38 #1/A:39 #1/A:79 #1/A:80 #1/A:81 #1/A:82 #1/A:83 #1/A:84 #1/A:85 #1/A:86 #1/A:87 #1/A:109 #1/A:110 #1/A:111 #1/A:112 #1/A:113 #1/A:185 #1/A:186 #1/A:187 #1/A:188 #1/A:189 #1/A:190 #1/A:191 #1/A:192 #1/A:193 #1/A:194 #1/A:195 #1/A:196 #1/A:197 #1/A:198 #1/A:199 #1/A:201 #1/A:202 #1/A:203 #1/A:204 #1/A:205 #1/A:238 #1/A:239 #1/A:240 #1/A:241 #1/A:242 #1/A:243 #1/A:244 #1/A:245 #1/A:246 #1/A:247 #1/A:248 #1/A:249
+
+color sel green
+
+## Hide pseudo bonds for clarity
+hide pbond
+
+
+

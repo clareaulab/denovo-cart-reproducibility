@@ -12,7 +12,9 @@ p1 <- ggplot(raw_in, aes(x = RPMI_8226, y = K562_CD22, color = what)) +
   geom_abline(slope=1, intercept=0, linetype = 2) +
   scale_y_continuous(limits = c(0, 80)) + scale_x_continuous(limits = c(0, 80)) +
   pretty_plot(fontsize = 8) + L_border() +
+  geom_text(aes(label=ID)) + 
   theme(legend.position = "none")
+p1
 cowplot::ggsave2(p1, file = "../plots/scatter_CD22_RPMI.pdf", width = 1.3, height = 1.3)
   
 melt_df <- raw_in[,c("ID","CAR_Only","RPMI_8226","K562_Parental","Raji", "K562_CD22")] %>%

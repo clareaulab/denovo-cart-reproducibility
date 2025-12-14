@@ -1,0 +1,34 @@
+# CD19 l112 int wildtype first, l115 wildtype second
+
+## Match to previous
+mm #1/B to #2/B
+
+## Set lighting
+lighting soft
+graphics silhouette true
+lighting shadows false
+set bgcolor white
+
+## Hide #2 first
+hide #2 cartoon
+color #1/A blue
+color #1/B gray
+show #1/B surface
+transparency #1/B 70
+
+color #1/B gray
+surface #1/B
+## Turn CD19 back to 40 transparenc
+transparency #1/B 40
+
+## Hide #1 now and do the same
+hide #1 cartoon
+hide #1 surface
+
+show #2/A cartoon
+show #2/B surface
+show #2/B cartoon
+color #2/A blue
+color #2/B gray
+transparency #2/B 70
+

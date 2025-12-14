@@ -1,0 +1,61 @@
+# Load these files (in this order)
+# BCMA_l59_s903443_mpnn2_model2.pdb
+# BCMA_l63_s961592_mpnn9_model2.pdb
+# BCMA_l63_s890300_mpnn4_model2.pdb
+# BCMA_l59_561726_mpnn1_model2.pdb
+# BCMA_l58_s298275_mpnn2_model2.pdb
+
+mm #2-5/A to #1/A
+set bgColor white
+
+hide #2-5/A cartoon
+color #1/A gray
+show #1/A surface
+transparency #1/A 70
+
+color #1/B green
+color #2/B cyan
+color #3/B purple
+color #4/B teal
+color #5/B salmon
+
+graphics silhouettes true
+lighting soft
+lighting shadows false
+
+## Save the session at this point
+
+## Do these commands to show each complex individually
+hide /B cartoon
+show #1/B cartoon
+
+hide /B cartoon
+show #2/B cartoon
+
+hide /B cartoon
+show #3/B cartoon
+
+hide /B cartoon
+show #4/B cartoon
+
+hide /B cartoon
+show #5/B cartoon
+
+## Add these commands to show monomer only
+hide #1/A surface
+hide #1/A cartoon
+
+hide /B cartoon
+show #1/B cartoon
+
+hide /B cartoon
+show #2/B cartoon
+
+hide /B cartoon
+show #3/B cartoon
+
+hide /B cartoon
+show #4/B cartoon
+
+hide /B cartoon
+show #5/B cartoon

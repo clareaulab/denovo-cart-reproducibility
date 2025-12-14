@@ -58,6 +58,7 @@ plot_fc <- function(df,pcol,curcol) {
   df$logFc <- log2(df %>% pull({{curcol}}) / df %>% pull({{pcol}}))
   # Cap negative FC at -10
   df$logFc <- pmax(df$logFc,-10)
+  print(df)
   # Plot
   fc_plot <- ggplot(df, aes(x = log1p_tpm, y = logFc, color = is_selected)) + 
     geom_point() +

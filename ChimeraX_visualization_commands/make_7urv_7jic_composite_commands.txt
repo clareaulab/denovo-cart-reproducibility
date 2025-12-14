@@ -1,0 +1,32 @@
+## Load 7jic as #1, 7urv as #1
+
+## Align them
+mm #2/C to #1/A
+
+## Hide the Fab
+hide #1/H cartoon
+hide #1/L cartoon
+
+## Hide the 7urv CD19
+hide #2/c cartoon
+
+## Make the ECD part of the CD81 surface
+show #1/B:34-63 #1/B:117-201 surface
+show #1/A surface
+select #1/A:292-313
+hide sel surface
+show #2/D surface
+
+## Color in 
+color #1/A gray
+color #1/B cyan
+color #2/D:39-145 purple
+color #2/D:146-160 orange
+color #2/D:161-280 red
+
+
+## Make plot pretty
+lighting soft
+graphics silhouette true
+lighting shadows false
+set bgcolor white

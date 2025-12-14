@@ -1,0 +1,32 @@
+# After loading CD22_l61_s819258_mpnn2_contact_assigned.pdb and 7O52
+
+
+# hide removes non protein entities
+hide 
+
+# hide crystal CD22
+hide #2/U cartoon
+
+# Align
+mm #2/U to #1/B
+
+# Color the Heavy and light chains
+color #2/H brown
+color #2/L purple
+
+# Color the target CD22
+color #1/B gray 
+show #1/B surface
+transparency #1/B 70
+
+
+# color the binder
+color #1/A orange 
+
+# Makes things look nice
+graphics silhouettes true
+lighting soft
+lighting shadows false
+set bgColor white
+
+

@@ -1,0 +1,40 @@
+# Load C3.pdb
+
+show #1/B surface 
+color #1/A blue
+color #1/B gray
+
+
+lighting soft
+graphics silhouette true
+lighting shadows false
+set bgcolor white
+
+transparency #1/B 70
+
+## Save the complex
+
+hide #1/B surface
+hide #1/B cartoon
+
+## Load 7jic as #2
+mm #2/A to #1/B
+hide #2/H cartoon
+hide #2/L cartoon
+hide #2/A cartoon
+hide #1/A cartoon
+color #2/B cyan
+
+## Show VH/VL
+show #2/L surface 
+show #2/H surface
+color #2/L purple
+color #2/H brown
+
+select #2/B:34-63 #2/B:117-201
+show see surface
+
+## show CD19 part that is transmembrane as well
+select #2/A:292-313
+Hide sel surface
+

@@ -1,0 +1,31 @@
+# After loading all PDBs
+
+## Align on chain B on the first PD structure (CD19)
+mm #2-30/B to #1/B
+
+## Hide BCMA for all but the first PDB
+hide #2-30/B cartoon
+
+## Makes it gray
+color #1/B gray
+
+## Show the surface
+show #1/B surface
+
+## Make it transparent
+transparency #1/B 70
+
+## Graph the outline of(silhouette)
+graphics silhouettes true
+
+## Use the soft lighting mode
+lighting soft
+
+## Making sure shadows are off
+lighting shadows false
+
+## Make sure the background is white
+set bgColor white
+
+## For visual clarity only show the first 10 Partially diffused binders
+hide #11-30/A cartoon

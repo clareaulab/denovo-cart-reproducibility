@@ -1,0 +1,19 @@
+# Load C3.pdb
+
+show #1/B surface 
+color #1/A blue
+color #1/B gray
+
+
+lighting soft
+graphics silhouette true
+lighting shadows false
+set bgcolor white
+
+transparency #1/B 70
+
+## Save the complex
+
+hide #1/B surface
+hide #1/B cartoon
+
