@@ -2,13 +2,98 @@ library(Seurat)
 library(dplyr)
 library(data.table)
 library(BuenColors)
-setwd("/home/chuh/protein_design/denovo-cart-reproducibility/scRNAseq")
 
 ## Load data
-bcma_so_tumor_filtered = readRDS("./data/seurat_objects/bcma_so_tumor_filtered.rds")
+bcma_so_tumor_filtered = readRDS("../data/seurat_objects/bcma_so_tumor_filtered.rds")
 
-selected_markers_bcma = VlnPlot(bcma_so_tumor_filtered, features = c("IL2","IFNG","GZMA","GZMB"),ncol=4)
+bcma_so_tumor_filtered@meta.data$binder_name_simple = dplyr::recode(
+  bcma_so_tumor_filtered@meta.data$binder_name,
+  !!!c("BCMA_Abecma"="Abecma","BCMA_561726_WT"="B5","BCMA_B11_I59_int_1525"="B5.I0",
+       "BCMA_A2_nonint_0366"="B5.N6","BCMA_B4_I59_nonint_1399"="B5.N9")
+)
+bcma_so_tumor_filtered@meta.data$binder_name_simple = factor(
+  bcma_so_tumor_filtered@meta.data$binder_name_simple,
+  levels = c(
+    "Abecma","B5","B5.I0","B5.N6","B5.N9"
+  ))
+
+Idents(bcma_so_tumor_filtered) = "binder_name_simple"
+selected_markers_bcma = VlnPlot(bcma_so_tumor_filtered, features = c("IL2","IFNG","GZMA","GZMB"),ncol=4,split.by = "cd_type")
+selected_markers_bcma
 cowplot::ggsave2("./plots/BCMA/selected_markers.png",selected_markers_bcma,dpi=300,width=12,height=4)
+
+## Check CD type proportions
+bcma_cd_prop_df = table(bcma_so_tumor_filtered@meta.data$binder_name_simple,bcma_so_tumor_filtered@meta.data$cd_type) %>% as.data.frame()
+bcma_cd_prop_df = bcma_cd_prop_df %>% group_by(Var1) %>% mutate(proportion = Freq / sum(Freq)) %>%ungroup()
+bcma_cd_prop_plot = ggplot(bcma_cd_prop_df, aes(x = Var1, y = proportion, fill = Var2)) +
+  geom_bar(stat = "identity", position = "stack") + 
+  scale_fill_manual(values=c("CD4+"="dodgerblue3","CD8+"="firebrick")) +
+  scale_y_continuous(labels = scales::percent,expand = c(0,0)) +
+  pretty_plot() + L_border() +
+  theme(axis.title = element_blank(),legend.position = "none",text = element_text(size=7))
+  #labs(y = "Proportion of T Cells", x = "Binder Name", fill = "CD Type") +
+
+cowplot::ggsave2("../plots/BCMA/bcma_cd_prop_plot.pdf",bcma_cd_prop_plot,dpi=300,width=1.7,height=1.3)
+
+bcma_cd_prop_df
+
+# Get CD4 proportion per binder, normalized to B5.N6
+ref <- "B5.N6"
+
+bcma_cd4_se_df <- bcma_so_tumor_filtered@meta.data %>%
+  mutate(is_cd4 = as.integer(cd_type == "CD4+")) %>%
+  group_by(binder_name_simple) %>%
+  summarise(
+    n       = n(),
+    prop    = mean(is_cd4),
+    se      = sqrt(prop * (1 - prop) / n),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    ref_prop = prop[binder_name_simple == ref],
+    norm     = prop / ref_prop,
+    norm_ci  = 1.96 * se / ref_prop
+  )
+
+bcma_cd4_se_df$binder_name_simple = factor(bcma_cd4_se_df$binder_name_simple,levels=c(
+  "Abecma","B5","B5.I0","B5.N6","B5.N9"
+))
+#"Abecma","B5","B5.I0","B5.N6","B5.N9"
+
+bcma_cd4_norm_plot <- ggplot(bcma_cd4_se_df %>% filter(binder_name_simple != ref),
+                             aes(x = binder_name_simple, y = norm)) +
+  #geom_errorbar(aes(ymin = norm - norm_ci, ymax = norm + norm_ci), width = 0.2) +
+  geom_errorbar(aes(ymin = norm - norm_ci, ymax = norm + norm_ci), width = 0.5) +
+  geom_point(size = 0.8) +
+  ylim(0.9, 1.28) +
+  geom_hline(yintercept = 1, linetype = 2) +
+  pretty_plot() + L_border() + #labs(y = "CD4 Prop. / (B5.N6 CD4 Prop.)") +
+  theme(axis.title = element_blank(), text = element_text(size = 7))
+bcma_cd4_norm_plot
+cowplot::ggsave2("../plots/BCMA/bcma_cd4_prop_norm_plot.pdf",bcma_cd4_norm_plot,dpi=300,width=1.3,height=1.3)
+
+library(purrr)
+
+binders <- levels(bcma_cd4_se_df$binder_name_simple)
+cell_df  <- bcma_so_tumor_filtered@meta.data %>%
+  mutate(is_cd4 = as.integer(cd_type == "CD4+")) %>%
+  filter(binder_name_simple %in% binders)
+
+# All pairwise prop.test
+pairwise_df <- combn(binders, 2, simplify = FALSE) %>%
+  map_dfr(function(pair) {
+    d <- cell_df %>% filter(binder_name_simple %in% pair) %>%
+      group_by(binder_name_simple) %>%
+      summarise(x = sum(is_cd4), n = n(), .groups = "drop")
+    p <- prop.test(x = d$x, n = d$n)$p.value
+    tibble(group1 = pair[1], group2 = pair[2], pval = p)
+  }) %>%
+  mutate(
+    padj  = p.adjust(pval, method = "BH"),
+    label = case_when(padj < 0.001 ~ "***", padj < 0.01 ~ "**", padj < 0.05 ~ "*", TRUE ~ "ns")
+  )
+
+pairwise_df
 
 ## Inspect clusters
 bcma_dim_plot = DimPlot(bcma_so_tumor_filtered,
@@ -18,15 +103,18 @@ bcma_dim_plot = DimPlot(bcma_so_tumor_filtered,
 bcma_dim_plot
 cowplot::ggsave2("./plots/BCMA/Dimplot.png",bcma_dim_plot,dpi=300,width=12,height=4)
 
+## Check CD3
 bcma_so_tumor_filtered@meta.data$binder_name = factor(bcma_so_tumor_filtered@meta.data$binder_name,levels = c(
   "BCMA_Abecma","BCMA_561726_WT","BCMA_B11_I59_int_1525","BCMA_A2_nonint_0366","BCMA_B4_I59_nonint_1399"
 ))
 ## Draw the dots properly
 bcma_dots_simple = DimPlot(bcma_so_tumor_filtered, label = FALSE, group.by = c( "binder_name"), shuffle = TRUE, seed = 3,pt.size = 0.01) +
-  scale_color_manual(values = c("#FFB81C","#D91E18","#8B0000","#9966CC","#00BFFF")) + 
+  #scale_color_manual(values = c("#FFB81C","#D91E18","#8B0000","#9966CC","#00BFFF")) + 
+  scale_color_manual(values = c("#FFB81C","#D91E18","#8B0000","#9966CC","#2CA02C")) + 
   theme_void() + ggtitle("") + theme(legend.position = "none")
 bcma_dots_simple
-cowplot::ggsave2(bcma_dots_simple, file = "./plots/BCMA/umap_base.png", width = 6, height = 6, dpi = 300)
+cowplot::ggsave2(bcma_dots_simple, file = "../plots/BCMA/umap_base_color_updated.png", width = 6, height = 6, dpi = 300)
+
 
 bcma_dots_simple
 
@@ -54,6 +142,7 @@ bcma_feature_plots = cowplot::plot_grid(
   mk_plot(bcma_so_tumor_filtered,"TNF"),
   ncol=2,scale=1
 )
+bcma_feature_plots
 cowplot::ggsave2(bcma_feature_plots,file="./plots/BCMA/umap_features.png",width=6*2,height=6*2, dpi=600)
 
 ## Make more feature plots for supplements
@@ -77,7 +166,7 @@ split_activate_plot
 
 bcma_marker_data = FetchData(bcma_so_tumor_filtered,
                              vars = c("IL2","IFNG","TNF","GZMA","GZMB","binder_name"),
-                             slot = "data"
+                             #slot = "data"
                              ) %>%
   pivot_longer(
     cols = c("IL2", "IFNG", "GZMA", "GZMB"),
@@ -378,6 +467,86 @@ for (binder in evolved_binders) {
   write.csv(evolved_parental_comparison$markers,paste0("./data/degs/degs_",binder,"_vs_BCMA_561726_WT.csv"))
 }
 
+## Perform DEG analysis between all evolved binders to parental (Per cell types)
+evolved_binders = c("BCMA_B4_I59_nonint_1399","BCMA_B11_I59_int_1525","BCMA_A2_nonint_0366")
+for (binder in evolved_binders) {
+  for (cd_type in c("CD4+","CD8+")) {
+    #sub_so = subset(bcma_so_tumor_filtered,cd_type==cd_type)
+    clean_name = substr(cd_type,1,3)
+    evolved_parental_comparison = compare_samples_with_enrichment(
+      bcma_so_tumor_filtered,
+      sample_col="binder_name",
+      sample1=binder,
+      sample2="BCMA_561726_WT",
+      subset_col="cd_type",
+      subset_value=cd_type
+    )
+    cowplot::ggsave2(paste0("../plots/BCMA/volcano_",binder,"_vs_BCMA_561726_WT_",clean_name,".pdf"),evolved_parental_comparison$volcano_plot,dpi=300,width=8,height=4)
+    cowplot::ggsave2(paste0("../plots/BCMA/volcano_",binder,"_vs_BCMA_561726_WT_",clean_name,".png"),evolved_parental_comparison$volcano_plot,dpi=300,width=8,height=4)
+    cowplot::ggsave2(paste0("../plots/BCMA/fgsea_",binder,"_vs_BCMA_561726_WT_",clean_name,".pdf"),evolved_parental_comparison$fgsea_plot,dpi=300,width=8,height=8)
+    write.csv(evolved_parental_comparison$markers,paste0("../data/degs/degs_",binder,"_vs_BCMA_561726_WT_",clean_name,".csv"))
+  }
+}
+
+## Check if CD4/CD8 effect sizes are consistent
+bcma_evolved_cd4_degs = read.csv("../data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_561726_WT_CD4.csv")
+colnames(bcma_evolved_cd4_degs) <- paste(colnames(bcma_evolved_cd4_degs), "CD4", sep = "_")
+bcma_evolved_cd8_degs = read.csv("../data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_561726_WT_CD8.csv")
+colnames(bcma_evolved_cd8_degs) <- paste(colnames(bcma_evolved_cd8_degs), "CD8", sep = "_")
+bcma_evolved_degs_combined = merge(bcma_evolved_cd4_degs,bcma_evolved_cd8_degs,by.x="gene_CD4",by.y="gene_CD8",all.x=TRUE)
+bcma_evolved_degs_combined
+
+bcma_evolved_degs_combined$sig_in_cd4 = bcma_evolved_degs_combined$p_val_adj_CD4 < 0.05
+bcma_evolved_degs_combined_annotate_subset = bcma_evolved_degs_combined %>% filter(
+  (avg_log2FC_CD4 < -1.25) | (avg_log2FC_CD4 > 1) | (avg_log2FC_CD8 > 1.3) 
+)
+effect_size_comparison_plot = ggplot(bcma_evolved_degs_combined,aes(x=avg_log2FC_CD4,y=avg_log2FC_CD8)) +
+  geom_point(aes(color=sig_in_cd4)) + pretty_plot() + L_border() +
+  geom_abline(slope=1,linetype="dashed",color="gray") +
+  geom_hline(yintercept = 0) + geom_vline(xintercept = 0) +
+  geom_smooth(method = "lm", se = TRUE) +
+  geom_text_repel(data=bcma_evolved_degs_combined_annotate_subset,aes(label=gene_CD4)) +
+  scale_color_manual(values=c("TRUE"="dodgerblue3","FALSE"="gray")) +
+  labs(x="log2FC(Evolved CD4/ Parental CD4)",y="log2FC(Evolved CD8/ Parental CD8)") +
+  theme(legend.position = "none")
+
+effect_size_comparison_plot
+
+ggsave("../plots/BCMA/CD4_CD8_effect_size_comparison_plot.pdf",effect_size_comparison_plot,dpi=300)
+
+## Make a new one that only contains sig hits
+bcma_evolved_degs_combined_sig_only = bcma_evolved_degs_combined %>% filter(
+  (p_val_adj_CD4 < 0.05) | (p_val_adj_CD8 < 0.05)
+)
+bcma_evolved_degs_combined_sig_only$to_highlight = bcma_evolved_degs_combined_sig_only$gene_CD4 %in% c(
+  "IL2","ENTPD1","IFNG","PDCD1"
+)
+effect_size_comparison_plot_sig_only = ggplot(bcma_evolved_degs_combined_sig_only,aes(x=avg_log2FC_CD4,y=avg_log2FC_CD8)) +
+  geom_point(aes(color=to_highlight)) + pretty_plot() + L_border() +
+  geom_abline(slope=1,linetype="dashed") +
+  geom_hline(yintercept = 0) + geom_vline(xintercept = 0) +
+  geom_smooth(method = "lm", se = TRUE,) +
+  #geom_text_repel(data=bcma_evolved_degs_combined_sig_only %>% filter(to_highlight),aes(label=gene_CD4)) +
+  scale_color_manual(values=c("TRUE"="firebrick3","FALSE"="black")) +
+  labs(x="log2FC(Evolved CD4/ Parental CD4)",y="log2FC(Evolved CD8/ Parental CD8)") +
+  theme(legend.position = "none",axis.title = element_blank(),text = element_text(size=7),
+        axis.line = element_line(linewidth = 0.5))
+effect_size_comparison_plot_sig_only
+ggsave("../plots/BCMA/effect_size_comparison_plot_sig_only.pdf",effect_size_comparison_plot_sig_only,dpi=300,width=1.5,height=1.4)
+
+
+VlnPlot(
+  subset(bcma_so_tumor_filtered, binder_name_simple == "B5" | binder_name_simple == "B5.I0"),
+  features = c("IL24"),
+  split.by = c("cd_type")
+  )
+
+VlnPlot(
+  subset(bcma_so_tumor_filtered, cd_type == "CD4+" | cd_type == "CD8+"),
+  features = c("IL24"),
+  split.by = c("binder_name_simple")
+)
+
 ## Compared good evolved to no activation unevolved
 evolved_good_vs_evolved_bad_comparison = compare_samples_with_enrichment(
   bcma_so_tumor_filtered,
@@ -422,8 +591,8 @@ write.csv(tonic_vs_nonactive_comparison$markers,paste0("./data/degs/degs_","BCMA
 
 
 ## Load the overexpressed genes from evolved to wildtype as binder activation module score
-evolved_vs_parental = read.csv("./data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_561726_WT.csv")
-tonic_vs_nonactive = read.csv("./data/degs/degs_BCMA_B4_I59_nonint_1399_vs_BCMA_A2_nonint_0366.csv")
+evolved_vs_parental = read.csv("../data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_561726_WT.csv")
+tonic_vs_nonactive = read.csv("../data/degs/degs_BCMA_B4_I59_nonint_1399_vs_BCMA_A2_nonint_0366.csv")
 #evolved_vs_parental = read.csv("./data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_B4_I59_nonint_1399.csv")
 #evolved_vs_parental = read.csv("./data/degs/degs_BCMA_B11_I59_int_1525_vs_BCMA_A2_nonint_0366.csv")
 
@@ -475,25 +644,75 @@ module_gene_list = list(
   "effector" = effector_genes,
   "exhaustion" = exhaustion_genes,
   "function" = function_genes,
-  "memory" = memory_genes,
-  "activation" = general_activation_genes,
-  "binder_activation" = binder_activation_genes,
-  "binder_tonic" = binder_tonic_genes
+  "memory" = memory_genes
+  #"activation" = general_activation_genes,
+  #"binder_activation" = binder_activation_genes,
+  #"binder_tonic" = binder_tonic_genes
 )
 
 bcma_so_tumor_filtered = AddModuleScore(
   object = bcma_so_tumor_filtered,
   features = module_gene_list,
-  name = c("effector","exhaustion","function","memory", "activation","binder_activation","binder_tonic")
+  name = c("effector","exhaustion","function","memory")#, "activation","binder_activation","binder_tonic")
 )
+
+## Visualize differnece in module scores by cell types
+
+bcma_cdtype_module_scores = bcma_so_tumor_filtered@meta.data[,c("binder_name_simple","effector1","exhaustion2","cd_type")]
+bcma_cdtype_module_scores_test_results = bcma_cdtype_module_scores %>%
+  group_by(binder_name_simple) %>%
+  summarise(
+    # Means per CD type
+    mean_effector1_CD4  = mean(effector1[cd_type == "CD4+"], na.rm = TRUE),
+    mean_effector1_CD8  = mean(effector1[cd_type == "CD8+"], na.rm = TRUE),
+    mean_exhaustion2_CD4 = mean(exhaustion2[cd_type == "CD4+"], na.rm = TRUE),
+    mean_exhaustion2_CD8 = mean(exhaustion2[cd_type == "CD8+"], na.rm = TRUE),
+    # Wilcoxon p-values (CD4+ vs CD8+)
+    p_effector1   = wilcox.test(
+      effector1[cd_type == "CD4+"],
+      effector1[cd_type == "CD8+"]
+    )$p.value,
+    p_exhaustion2 = wilcox.test(
+      exhaustion2[cd_type == "CD4+"],
+      exhaustion2[cd_type == "CD8+"]
+    )$p.value,
+    .groups = "drop"
+  )
+bcma_cdtype_module_scores_test_results[,c("binder_name_simple","p_effector1","p_exhaustion2")]
+
+
+bcma_cd4_cd8_effector_plot <- ggplot(bcma_cdtype_module_scores,
+                                     aes(x = binder_name_simple, y = effector1, fill = cd_type)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  geom_boxplot(width = 0.2, position = position_dodge(width = 0.8), outlier.shape = NA) +
+  #scale_fill_manual(values=c("CD4+"="dodgerblue3","CD8+"="firebrick")) +
+  #scale_fill_manual(values=c("CD4+"="dodgerblue3","CD8+"="firebrick")) +
+  scale_fill_manual(values = c("CD4+" = "#2E86AB", "CD8+" = "#E07B39")) +
+  pretty_plot() + L_border() +
+  theme(axis.title = element_blank(), legend.position = "none")
+
+bcma_cd4_cd8_effector_plot
+ggsave("../plots/BCMA/bcma_cd4_cd8_effector_plot.pdf",bcma_cd4_cd8_effector_plot,dpi=300,width=2.6,height=1.3)
+
+bcma_cd4_cd8_exhaustion_plot = ggplot(bcma_cdtype_module_scores, aes(x = binder_name_simple, y = exhaustion2, fill = cd_type)) +
+  geom_violin(position = position_dodge(width = 0.8)) +
+  geom_boxplot(width = 0.2, position = position_dodge(width = 0.8), outlier.shape = NA) +
+  #scale_fill_manual(values=c("CD4+"="dodgerblue3","CD8+"="firebrick")) +
+  scale_fill_manual(values = c("CD4+" = "#2E86AB", "CD8+" = "#E07B39")) +
+  pretty_plot() + L_border() +
+  theme(axis.title = element_blank(), legend.position = "none")
+  
+bcma_cd4_cd8_exhaustion_plot
+ggsave("../plots/BCMA/bcma_cd4_cd8_exhaustion_plot.pdf",bcma_cd4_cd8_exhaustion_plot,dpi=300,width=2.6,height=1.3)
+
 
 VlnPlot(bcma_so_tumor_filtered, pt.size = 0, 
         features = c("effector1","exhaustion2","function3","memory4","activation5"),
         group.by = "binder_name") & geom_boxplot(outlier.shape = NA,)
 
 VlnPlot(bcma_so_tumor_filtered, pt.size = 0, 
-        features = c("IL2","GPA33"),
-        group.by = "binder_name") & geom_boxplot(outlier.shape = NA,)
+        features = c("effector1","exhaustion2"),
+        group.by = "binder_name_simple",split.by = "cd_type") & geom_boxplot(outlier.shape = NA,)
 
 binder_tonic_genes
 
@@ -583,8 +802,10 @@ bcma_so_tumor_filtered@meta.data$binder_name_simple = factor(
   levels = c(
     "Abecma","B5","B5.I0","B5.N6","B5.N9"
   ))
-bcma_so_tumor_filtered@meta.data$IL2_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IL2"), ]
-bcma_so_tumor_filtered@meta.data$IFNG_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IFNG"), ]
+#bcma_so_tumor_filtered@meta.data$IL2_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IL2"), ]
+#bcma_so_tumor_filtered@meta.data$IFNG_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA", slot = "data")[c("IFNG"), ]
+bcma_so_tumor_filtered@meta.data$IL2_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA")[c("IL2"), ]
+bcma_so_tumor_filtered@meta.data$IFNG_counts = GetAssayData(object = bcma_so_tumor_filtered, assay = "RNA")[c("IFNG"), ]
 
 ## Alternative color scheme
 bcma_color_mapping <- c(
@@ -621,12 +842,12 @@ cowplot::ggsave2("../plots/BCMA/bcma_il2_ifng_violin.png",bcma_il2_ifng_violin_p
 
 VlnPlot(bcma_so_tumor_filtered,features=c("IL2","IFNG"))
 
-combined_module_score_plots = cowplot::plot_grid(
-  cd22_oe_module_score_boxplot,cd22_rpmi_module_score_boxplot,ncol=1
-)
-combined_module_score_plots
-cowplot::ggsave2("../plots/CD22_OE_RPMI_Activation_Scores.pdf",combined_module_score_plots,dpi=300,width=1.8,height=1.8)
-
+# combined_module_score_plots = cowplot::plot_grid(
+#   cd22_oe_module_score_boxplot,cd22_rpmi_module_score_boxplot,ncol=1
+# )
+# combined_module_score_plots
+# cowplot::ggsave2("../plots/CD22_OE_RPMI_Activation_Scores.pdf",combined_module_score_plots,dpi=300,width=1.8,height=1.8)
+# 
 
 library(BuenColors)
 # replacement_dict = c(

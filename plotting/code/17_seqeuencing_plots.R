@@ -2,12 +2,10 @@ library(BuenColors)
 library(dplyr)
 library(data.table)
 
-setwd("//home/chuh/protein_design/denovo-cart-reproducibility/plotting/code")
-
 bcma_rfd_tpm <- read.csv("../data/BCMA_e3_fold_conditioned_tpm.csv")
 bcma_tpm <- read.csv("../data/BCMA_bindcraft_tpm.csv")
-cd19_big_tpm <- read.csv("../data/CD19_big_bindcraft_tpm.csv") %>% rename(binder_id = target_id)
-cd19_pd_tpm <- read.csv("../data/CD19_PartialDiffusion_tpm.csv")  %>% rename(binder_id = target_id)
+cd19_big_tpm <- read.csv("../data/CD19_big_bindcraft_tpm.csv") %>% dplyr::rename(binder_id = target_id)
+cd19_pd_tpm <- read.csv("../data/CD19_PartialDiffusion_tpm.csv")  %>% dplyr::rename(binder_id = target_id)
 cd22_tpm <- read.csv("../data/CD22_bindcraft_tpm.csv")
 cd19_e3_tpm <- read.csv("../data/CD19_e3_fold_conditioned_tpm.csv")
 
@@ -70,6 +68,139 @@ plot_fc <- function(df,pcol,curcol) {
   return(fc_plot)
 }
 
+plot_fc_alt <- function(df,pcol,curcol) {
+  # Log transform tpm and fold change
+  df$log1p_tpm <- log10(df %>% pull({{curcol}})+1)
+  df$logFc <- log2(df %>% pull({{curcol}}) / df %>% pull({{pcol}}))
+  # Cap negative FC at -10
+  df$logFc <- pmax(df$logFc,-10)
+  print(df %>% filter(is_selected))
+  
+  df$logFC_100 = log2(df %>% pull(BCMA_M100_mean) / df %>% pull(BCMA_parental_mean))
+  df$logFC_500 = log2(df %>% pull(BCMA_M500_mean) / df %>% pull(BCMA_parental_mean))
+  df$logFC_1000 = log2(df %>% pull(BCMA_M1000_mean) / df %>% pull(BCMA_parental_mean))
+  
+  df$is_subfc_blue = df$binder_id %in% c("BCMA_l54_s816947_mpnn2","BCMA_l61_s550568_mpnn3")
+  
+  # Plot
+  fc_plot <- ggplot(df, aes(x = log1p_tpm, y = logFc, color = is_subfc_blue)) + 
+    geom_point() +
+    scale_color_manual(values = c("lightgray","dodgerblue3")) + 
+    pretty_plot(fontsize = 8) + L_border() + 
+    theme(legend.position = "none") +
+    geom_hline(yintercept =0, linetype = 2) +
+    labs(x="log10(TPM+1)",y="logFC(TPM/Parental)")
+  return(fc_plot)
+}
+
+## The two blue dots with logFC <0
+#"BCMA_l54_s816947_mpnn2"
+#"BCMA_l61_s550568_mpnn3"
+
+write.csv(bcma_rfd_tpm,"../data/bcma_rfd_tpm.csv",row.names = FALSE)
+
+plot_fc_alt(bcma_tpm,"BCMA_parental_mean","BCMA_M1000_mean")
+plot_fc_alt(bcma_tpm,"BCMA_parental_mean","BCMA_M500_mean")
+plot_fc_alt(bcma_tpm,"BCMA_parental_mean","BCMA_M100_mean")
+
+bcma_rfd_tpm$logFC_1000 = log2(bcma_rfd_tpm %>% pull(BCMA_1000_mean) / bcma_rfd_tpm %>% pull(BCMA_parental_mean))
+bcma_rfd_tpm$logFC_100 = log2(bcma_rfd_tpm %>% pull(BCMA_100_mean) / bcma_rfd_tpm %>% pull(BCMA_parental_mean))
+
+# ggplot(bcma_rfd_tpm,aes(x=logFC_1000,y=logFC_100,color=is_selected)) + 
+#   geom_point() +
+#   pretty_plot() + L_border() +
+#   geom_hline(yintercept=0) + geom_vline(xintercept=0)
+
+# ggplot(bcma_rfd_tpm,aes(x=log10(BCMA_parental_mean+1),y=logFC_100,color=is_selected)) + 
+#   geom_point() +
+#   pretty_plot() + L_border() +
+#   geom_hline(yintercept = 0) +
+#   geom_vline(xintercept = log10(1/dim(bcma_rfd_tpm)[1]), linetype="dashed") +
+#   scale_color_manual(values = c("lightgray","dodgerblue3"))
+
+bcma_rfd_tpm$BCMA_parental_occupancy = bcma_rfd_tpm$BCMA_parental_mean/sum(bcma_rfd_tpm$BCMA_parental_mean)
+bcma_rfd_tpm$BCMA_1000_occupancy = bcma_rfd_tpm$BCMA_1000_mean/sum(bcma_rfd_tpm$BCMA_1000_mean)
+bcma_rfd_tpm$BCMA_100_occupancy = bcma_rfd_tpm$BCMA_100_mean/sum(bcma_rfd_tpm$BCMA_100_mean)
+bcma_rfd_tpm$BCMA_1000_occupancy_FC = bcma_rfd_tpm$BCMA_1000_occupancy/bcma_rfd_tpm$BCMA_parental_occupancy
+bcma_rfd_tpm$BCMA_100_occupancy_FC =bcma_rfd_tpm$BCMA_100_occupancy/bcma_rfd_tpm$BCMA_parental_occupancy
+
+bli_tested = c(
+  "BCMAE3FoldConditionedAllFolds_1XU2ChainR_R18-R20-R26_50-100_i9_54_dldesign_0",
+  "BCMAE3FoldConditioned_1XU2ChainR_R18-R20-R26_50-100_i55_32_dldesign_0"
+)
+
+bcma_rfd_tpm = bcma_rfd_tpm %>% mutate(
+  binder_id_short = str_extract(binder_id, "([^_]+_){3}[^_]+$")
+)
+
+bcma_rfd_tpm_m100_fc_plot = ggplot(bcma_rfd_tpm,aes(x=BCMA_parental_occupancy,y=logFC_100,color=is_selected,label=binder_id_short)) +
+  geom_point() +
+  pretty_plot() + L_border() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(labels = label_percent()) +
+  geom_vline(xintercept = 1/dim(bcma_rfd_tpm)[1], linetype="dashed") +
+  labs(x="%Total CPM in Parental",y="logFC(100nM/Parental)") +
+  scale_color_manual(values = c("lightgray","dodgerblue3")) +
+  geom_label_repel(data = bcma_rfd_tpm %>% filter(logFC_100 > 0)) +
+  theme(legend.position = "none", axis.title.x = element_blank(),axis.title.y = element_blank(),axis.text = element_text(size = 5))
+bcma_rfd_tpm_m100_fc_plot
+
+cowplot::ggsave2("../plots/tpm_FC_bcma_rfd_percent_parental_100nM.pdf",bcma_rfd_tpm_m100_fc_plot,dpi=300,height = 1,width=1)
+
+## Read in CAR data
+rfd5_car_readout <- read.csv("../data/RFD5_CAR-J_CD69_cocultures.csv",check.names = FALSE)
+rfd5_car_readout_df <- rfd5_car_readout %>%
+  column_to_rownames("Cellline") %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("binder_id") %>%
+  mutate(across(c(K562, MM1S, Raji, `CAR alone`), as.numeric)) %>%
+  mutate(avg_BCMA_pos = (MM1S + Raji) / 2)
+rfd5_car_readout_df = rfd5_car_readout_df %>% mutate(
+  binder_id_short = case_when(
+    binder_id == "No binder" ~ "No binder",
+    binder_id == "Abecma" ~ "Abecma",
+    TRUE ~ str_extract(binder_id, "([^_]+_){3}[^_]+$")
+  )
+)
+
+rfd5_car_readout_df$is_selected = rfd5_car_readout_df$binder_id %in% bcma_rfd_tested_in_cars
+rfd5_car_readout_df_barplot = ggplot(rfd5_car_readout_df,aes(x=reorder(binder_id_short,-avg_BCMA_pos),y=avg_BCMA_pos)) +
+  geom_col(aes(fill=is_selected)) +
+  geom_hline(yintercept = rfd5_car_readout_df %>% filter(binder_id_short == "No binder") %>% pull(avg_BCMA_pos), linetype="dashed") +
+  scale_y_continuous(expand=c(0,Inf)) +
+  pretty_plot() + L_border() +
+  scale_fill_manual(values=c("gray","dodgerblue3")) +
+  theme(legend.position = "none", axis.title.x = element_blank(),axis.title.y = element_blank(),
+        axis.text = element_text(size = 5),axis.text.x = element_blank(), axis.ticks.x = element_blank()
+        )
+rfd5_car_readout_df_barplot
+cowplot::ggsave2("../plots/rfd5_car_readout_df_barplot.pdf",rfd5_car_readout_df_barplot,dpi=300,height = 1,width=1)
+
+  
+
+#BCMA_parental_occupancy < (1/dim(bcma_rfd_tpm)[1])
+# 
+bcma_rfd_tpm_filtered = bcma_rfd_tpm #%>% filter(logFC_100 > 1, logFC_1000 > 1)
+bcma_rfd_tpm_m100_fc_plot_alt = ggplot(bcma_rfd_tpm_filtered,aes(x=logFC_100,y=logFC_1000,color=is_selected,label=binder_id_short)) +
+  geom_point() +
+  pretty_plot() + L_border() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(labels = label_percent()) +
+  geom_vline(xintercept = 1/dim(bcma_rfd_tpm)[1], linetype="dashed") +
+  labs(x="%Total CPM in Parental",y="logFC(100nM/Parental)") +
+  scale_color_manual(values = c("lightgray","dodgerblue3")) +
+  #geom_text_repel() +
+  #geom_text_repel(data = bcma_rfd_tpm %>% filter(logFC_100 > 0)) +
+  theme(legend.position = "none", axis.title.x = element_blank(),axis.title.y = element_blank(),axis.text = element_text(size = 5))
+bcma_rfd_tpm_m100_fc_plot_alt
+
+
+
+ggplot(bcma_rfd_tpm,aes(x=BCMA_100_occupancy,fill=is_selected)) +
+geom_histogram()
+
+bcma_rfd_m1000_plot <- plot_fc(bcma_rfd_tpm,"BCMA_parental_mean", "BCMA_1000_mean")
 bcma_rfd_m100_plot <- plot_fc(bcma_rfd_tpm,"BCMA_parental_mean", "BCMA_100_mean")
 bcma_m1000_plot <- plot_fc(bcma_tpm,"BCMA_parental_mean","BCMA_M1000_mean")
 bcma_m100_plot <- plot_fc(bcma_tpm,"BCMA_parental_mean","BCMA_M100_mean")
@@ -78,7 +209,7 @@ cd19_big_m100_plot <- plot_fc(cd19_big_tpm,"CD19_Big_Parental_mean","CD19_Big_MA
 cd19_pd_m50_plot <- plot_fc(cd19_pd_tpm,"CD19_PartialDiffusion_P_mean","CD19_PartialDiffusion_MACS_50_mean")
 cd19_e3_m3f_plot <- plot_fc(cd19_e3_tpm,"CD19_parental_mean","CD19_M3F_mean")
 
-
+cowplot::ggsave2(bcma_rfd_m1000_plot, file = "../plots/tpm_FC_bcma_rfd_1000nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(bcma_rfd_m100_plot, file = "../plots/tpm_FC_bcma_rfd_100nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(bcma_m1000_plot, file = "../plots/tpm_FC_bcma_1000nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(bcma_m100_plot, file = "../plots/tpm_FC_bcma_100nM.pdf", width = 1.3, height = 1.3)
@@ -87,6 +218,31 @@ cowplot::ggsave2(cd19_big_m100_plot, file = "../plots/tpm_FC_cd19_big_100nM.pdf"
 cowplot::ggsave2(cd19_pd_m50_plot, file = "../plots/tpm_FC_cd19_pd_50nM.pdf", width = 1.3, height = 1.3)
 cowplot::ggsave2(cd19_e3_m3f_plot, file = "../plots/tpm_FC_cd19_m3f_1000nM.pdf", width = 1.3, height = 1.3)
 
+bcma_m100_plot_small = bcma_m100_plot + theme(axis.title.x = element_blank(),axis.title.y = element_blank(),axis.text = element_text(size = 5))
+cowplot::ggsave2(bcma_m100_plot_small, file = "../plots/tpm_FC_bcma_100nM_small.pdf", width = 1, height = 1)
+
+bcma_tpm %>% filter(is_selected, logFC_100 < 0)
+"BCMA_l54_s816947_mpnn2"
+"BCMA_l61_s550568_mpnn3"
+under_fc100_bcma_binders = c("BCMA_l54_s816947_mpnn2","BCMA_l61_s550568_mpnn3")
+bcma_tpm$under_fc100_bcma_binders = bcma_tpm$binder_id %in% under_fc100_bcma_binders
+bcma_tpm$logFC_500 = log2(bcma_tpm %>% pull(BCMA_M500_mean) / bcma_tpm %>% pull(BCMA_parental_mean))
+
+ggplot(bcma_tpm,aes(x=log10(BCMA_M1000_mean+1),y=logFC_1000,color=under_fc100_bcma_binders)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_M1000_mean+1),y=logFC_1000,color=under_fc100_bcma_binders)) + geom_point()
+ggplot(bcma_tpm,aes(x=logFC_100,y=logFC_1000,color=is_selected)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_parental_mean+1),y=logFC_1000,color=under_fc100_bcma_binders)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_parental_mean+1),y=logFC_1000,color=is_selected)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_M1000_mean+1),y=logFC_1000,color=under_fc100_bcma_binders)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_M1000_mean+1),y=logFC_1000,color=is_selected)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_M500_mean+1),y=logFC_500,color=under_fc100_bcma_binders)) + geom_point()
+ggplot(bcma_tpm,aes(x=log10(BCMA_M500_mean+1),y=logFC_500,color=is_selected)) + geom_point()
+
+write.csv(bcma_tpm,"../data/bcma_bc_tpm.csv",row.names = FALSE)
+
+bcma_m1000_plot
+
+bcma_m100_plot
 ## Make lineplots
 plot_binder_tpm <- function(df, condition_labels) {
   plot_cols <- intersect(names(condition_labels), names(df))
@@ -116,6 +272,7 @@ bcma_rfd_all_tpm_plot <- plot_binder_tpm(bcma_rfd_tpm, bcma_rfd_condition_map)
 bcma_rfd_all_tpm_plot
 cowplot::ggsave2(bcma_rfd_all_tpm_plot, file = "../plots/tpm_bcma_rfd_all_nM.pdf", width = 3.5, height = 1.3)
 
+bcma_rfd_all_tpm_plot
 
 
 bcma_condition_map <- c(
