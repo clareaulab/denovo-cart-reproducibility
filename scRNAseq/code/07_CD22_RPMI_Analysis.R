@@ -1,14 +1,14 @@
 library(Seurat)
 library(dplyr)
 library(data.table)
-setwd("/home/chuh/protein_design/denovo-cart-reproducibility/scRNAseq")
+#setwd("/home/chuh/protein_design/denovo-cart-reproducibility/scRNAseq")
 
 ## Load data
-cd22_rpmi_tumor_filtered = readRDS("./data/seurat_objects/cd22_rpmi_so_filtered.rds")
+cd22_rpmi_tumor_filtered = readRDS("../data/seurat_objects/cd22_rpmi_so_filtered.rds")
 
 ## Load starCAT outputs
-cd22_rpmi_starCAT_programs = read.table(paste0("./data/starCAT/CD22_RPMI_output/CD22_RPMI.rf_usage_normalized.txt"))
-cd22_rpmi_starCAT_scores = read.table(paste0("./data/starCAT/CD22_RPMI_output/CD22_RPMI.scores.txt"))
+cd22_rpmi_starCAT_programs = read.table(paste0("../data/starCAT/CD22_RPMI_output/CD22_RPMI.rf_usage_normalized.txt"))
+cd22_rpmi_starCAT_scores = read.table(paste0("../data/starCAT/CD22_RPMI_output/CD22_RPMI.scores.txt"))
 cd22_rpmi_tumor_filtered = cd22_rpmi_tumor_filtered %>%
   AddMetaData(metadata = cd22_rpmi_starCAT_programs) %>%
   AddMetaData(metadata = cd22_rpmi_starCAT_scores)
@@ -100,6 +100,10 @@ cd22_rpmi_dim_plot = DimPlot(cd22_rpmi_tumor_filtered,
 )
 cd22_rpmi_dim_plot
 cowplot::ggsave2("./plots/CD22_RPMI/Dimplot.png",cd22_rpmi_dim_plot,dpi=300,width=12,height=4)
+
+cd22_rpmi_tumor_filtered@meta.data
+
+FeaturePlot(cd22_rpmi_tumor_filtered,features = c("CD4","CD8A","CD8B"))
 
 ## Show selected markers
 selected_markers_cd22_rpmi = VlnPlot(cd22_rpmi_tumor_filtered, features = c("IL2","IFNG","GZMA","GZMB"),ncol=4)

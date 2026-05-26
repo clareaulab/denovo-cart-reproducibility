@@ -2,9 +2,15 @@ library(BuenColors)
 library(dplyr)
 library(data.table)
 library(yardstick)
+library(stringr)
+library(ggbeeswarm)
+library(cowplot)
 
 #dt = fread("../data/2025_10_24_all_binders_with_labels.csv") %>% data.frame()
-dt = fread("../data/2025_11_15_all_binders_with_labels.csv") %>% data.frame()
+#dt = fread("../data/2025_11_15_all_binders_with_labels.csv") %>% data.frame()
+#dt = fread("../data/2025_12_14_all_binders_with_labels.csv") %>% data.frame()
+dt = fread("../data/2026_05_19_all_binders_with_labels.csv") %>% data.frame()
+
 
 dt = dt %>% mutate(
   binder_by_YSD_1000nM = as.factor(binder_by_YSD_1000nM),
@@ -23,6 +29,12 @@ dt = dt %>% mutate(
   below_pae_10 = Average_pae_interaction < 10,
   above_iptm_85 = Average_iptm >= 0.85,
   above_ipSAE_85 = Average_ipSAE >= 0.85,
+  
+  above_ipSAE_max_85 = Average_ipSAE_max >= 0.85,
+  above_ipSAE_min_85 = Average_ipSAE_min >= 0.85,
+  above_ipSAE_a_to_b_85 = Average_Chn1_A_to_Chn2_B_ipSAE >= 0.85,
+  above_ipSAE_b_to_a_85 = Average_Chn1_B_to_Chn2_A_ipSAE >= 0.85,
+  
   below_pde_1 = Average_complex_pde < 1,
   below_ipde_1 = Average_complex_ipde < 1,
 
@@ -58,11 +70,14 @@ dt = dt %>%
 
 dt$campaign_short_replaced = str_replace_all(dt$campaign_short, " \\(", "\n(")
 
+table(dt$campaign_short_replaced)
+
 dt_ysd = dt %>% filter(!is.na(binder_by_YSD_1000nM))
 
 dt$campaign_short_replaced = factor(dt$campaign_short_replaced,levels=c(
   "RFD 1\n(BCMA)","RFD 2\n(BCMA)","RFD 3\n(BCMA)","RFD 4\n(BCMA)","RFD 5\n(BCMA)","BC 1\n(BCMA)",
   "RFD 1\n(CD19)","RFD 2\n(CD19)","RFD 3\n(CD19)","RFD 4\n(CD19)","BC 1\n(CD19)","BC 2\n(CD19)",
+  #"RFD3 1\n(CD19)", "BG VHH\n(CD19)",
   "RFD 1\n(CD22)", "BC 1\n(CD22)"
 ))
 
@@ -258,6 +273,149 @@ ggplot(combined_diffs_modified, aes(x = factor(variable_short), y = factor(targe
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_viridis_b()
 
+## Calculate AUROC and AUPRC of iptm/pae/ipSAE
+
+
+target_cols = c("pred_1", "pred_2")
+
+calculate_metrics <- function(data, label_col, pred_cols) {
+  y <- as.numeric(as.logical(data[[label_col]]))
+  results <- lapply(pred_cols, function(col) {
+    scores <- data[[col]]
+    
+    # PRROC expects scores separated by class
+    pos <- scores[y == 1]
+    neg <- scores[y == 0]
+    
+    # Calculate metrics
+    roc <- PRROC::roc.curve(scores.class0 = pos, scores.class1 = neg)
+    pr  <- PRROC::pr.curve(scores.class0 = pos, scores.class1 = neg)
+    
+    data.frame(
+      predictor = col,
+      auroc     = roc$auc,
+      auprc     = pr$auc.integral
+    )
+  })
+  do.call(rbind, results)
+}
+
+dt_ysd$Average_pae_interaction_inv = 1/dt_ysd$Average_pae_interaction
+dt_ysd$Average_pae_all_inv = 1/dt_ysd$Average_pae_all
+dt_ysd$Average_complex_ipde_inv = 1/dt_ysd$Average_complex_ipde
+dt_ysd$Average_complex_pde_inv = 1/dt_ysd$Average_complex_pde
+dt_ysd$Average_dG_neg = -dt_ysd$Average_dG
+
+
+dl_metrics = c(
+  "Average_ipSAE_max", "Average_ipSAE_min","Average_iptm","Average_pae_interaction_inv",
+  "Average_i_pLDDT","Average_complex_plddt","Average_complex_ipde_inv",
+  "Average_pDockQ","Average_pDockQ2","Average_LIS","Average_complex_pde_inv","Average_pae_all_inv","Average_ss_pLDDT"
+)
+biophysical_metrics = c(
+  "Average_InterfaceHbondsPercentage","Average_Interface_Hydrophobicity","Average_dSASA","Average_Unrelaxed_Clashes",
+  "Average_Interface_SASA_.","Average_Surface_Hydrophobicity","Average_dG_neg",
+  "Average_n_InterfaceHbonds","Average_ShapeComplementarity"
+)
+
+metric_cols = c(dl_metrics,biophysical_metrics)
+
+
+metrics_summary_overall_1000nM = calculate_metrics(
+  data = dt_ysd, 
+  label_col = "binder_by_YSD_1000nM", 
+  pred_cols = metric_cols
+)
+metrics_summary_overall_1000nM = metrics_summary_overall_1000nM %>% mutate(
+  metric_type = case_when(
+    predictor %in% dl_metrics ~ "ML-based metric",
+    predictor %in% biophysical_metrics ~ "Physics-based metric",
+  )
+)
+metrics_summary_overall_100nM = calculate_metrics(
+  data = dt_ysd, 
+  label_col = "binder_by_YSD_100nM", 
+  pred_cols = metric_cols
+)
+metrics_summary_overall_100nM = metrics_summary_overall_100nM %>% mutate(
+  metric_type = case_when(
+    predictor %in% dl_metrics ~ "ML-based metric",
+    predictor %in% biophysical_metrics ~ "Physics-based metric",
+  )
+)
+
+
+overall_auroc_plot_1000nM = ggplot(metrics_summary_overall_1000nM, aes(x = auroc, y = reorder(predictor, auroc),fill=metric_type)) +
+  geom_col() + pretty_plot() + L_border() +
+  scale_x_continuous(expand=c(0,Inf)) +
+  geom_vline(xintercept = 0.5, linetype="dashed") +
+  scale_fill_manual(values=c("ML-based metric"="dodgerblue3","Physics-based metric"="firebrick")) +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(),legend.position = "none",axis.text = element_text(size=5))
+overall_auroc_plot_1000nM
+
+cowplot::ggsave2("../plots/overall_ysd_auroc_plot_1000nM.pdf",overall_auroc_plot_1000nM,dpi=300,width=3,height=1.8,unit="in")
+
+overall_auroc_plot_100nM = ggplot(metrics_summary_overall_100nM, aes(x = auroc, y = reorder(predictor, auroc),fill=metric_type)) +
+  geom_col() + pretty_plot() + L_border() +
+  scale_x_continuous(expand=c(0,Inf)) +
+  geom_vline(xintercept = 0.5, linetype="dashed") +
+  scale_fill_manual(values=c("ML-based metric"="dodgerblue3","Physics-based metric"="firebrick")) +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(),legend.position = "none",axis.text = element_text(size=5))
+overall_auroc_plot_100nM
+cowplot::ggsave2("../plots/overall_ysd_auroc_plot_100nM.pdf",overall_auroc_plot_100nM,dpi=300,width=3,height=1.8,unit="in")
+
+# overall_auprc_plot = ggplot(metrics_summary_overall, aes(x = auprc, y = reorder(predictor, auprc),fill=metric_type)) +
+#   geom_col() + pretty_plot() + L_border() +
+#   scale_x_continuous(expand=c(0,Inf)) +
+#   geom_vline(xintercept = 0.5, linetype="dashed") +
+#   theme(axis.title.y = element_blank())
+
+
+antigens_to_test = c("BCMA","CD19","CD22")
+metrics_by_antigen_1000nM = lapply(antigens_to_test, function(ag) {
+  dt_ysd %>%
+    filter(antigen == ag) %>%
+    calculate_metrics(label_col = "binder_by_YSD_1000nM", pred_cols = metric_cols) %>%
+    mutate(antigen = ag) # Track which antigen this row belongs to
+}) %>% bind_rows()
+
+metrics_by_antigen_100nM = lapply(antigens_to_test, function(ag) {
+  dt_ysd %>%
+    filter(antigen == ag) %>%
+    calculate_metrics(label_col = "binder_by_YSD_100nM", pred_cols = metric_cols) %>%
+    mutate(antigen = ag) # Track which antigen this row belongs to
+}) %>% bind_rows()
+
+metrics_by_antigen_1000nM_auroc_plot = ggplot(metrics_by_antigen_1000nM, aes(x = auroc, y = reorder(predictor, auroc), color = antigen)) +
+  geom_point(size = 1, alpha = 0.75) +
+  scale_color_manual(values = c(
+    "BCMA" = "firebrick",
+    "CD19" = "dodgerblue3",
+    "CD22" = "orange"
+  )) +
+  theme_minimal() +
+  pretty_plot() + L_border() +
+  geom_vline(xintercept = 0.5, linetype="dashed") +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(),legend.position = "none",axis.text = element_text(size=5))
+
+cowplot::ggsave2("../plots/ysd_auroc_by_antigen_plot_1000nM.pdf",metrics_by_antigen_1000nM_auroc_plot,dpi=300,width=3,height=1.8,unit="in")
+
+metrics_by_antigen_100nM_auroc_plot = ggplot(metrics_by_antigen_100nM, aes(x = auroc, y = reorder(predictor, auroc), color = antigen)) +
+  geom_point(size = 1, alpha = 0.75) +
+  scale_color_manual(values = c(
+    "BCMA" = "firebrick",
+    "CD19" = "dodgerblue3",
+    "CD22" = "orange"
+  )) +
+  theme_minimal() +
+  pretty_plot() + L_border() +
+  geom_vline(xintercept = 0.5, linetype="dashed") +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(),legend.position = "none",axis.text = element_text(size=5))
+cowplot::ggsave2("../plots/ysd_auroc_by_antigen_plot_100nM.pdf",metrics_by_antigen_100nM_auroc_plot,dpi=300,width=3,height=1.8,unit="in")
+
+
+metrics_by_antigen_100nM_auroc_plot
+
 # TRUTH_COLUMN <- "binder_by_YSD_1000nM"
 # TARGET_CAMPAIGNS <- c(
 #   "BCMA_E3_fold conditioned", 
@@ -407,6 +565,18 @@ cowplot::ggsave2("../plots/mpnn_metric_comparisons.pdf",mpnn_metric_barplot,heig
 ipSAE_success_comparison = dt %>% group_by(antigen,above_ipSAE_85) %>% 
   summarise(success_rate=mean(binder_by_estimated_KD_1000nM==TRUE, na.rm=TRUE)) 
 
+ipSAE_min_success_comparison = dt %>% group_by(antigen,above_ipSAE_min_85) %>% 
+  summarise(success_rate=mean(binder_by_estimated_KD_1000nM==TRUE, na.rm=TRUE))
+
+ipSAE_max_success_comparison = dt %>% group_by(antigen,above_ipSAE_max_85) %>% 
+  summarise(success_rate=mean(binder_by_estimated_KD_1000nM==TRUE, na.rm=TRUE)) 
+
+ipSAE_a_to_b_success_comparison = dt %>% group_by(antigen,above_ipSAE_a_to_b_85) %>% 
+  summarise(success_rate=mean(binder_by_estimated_KD_1000nM==TRUE, na.rm=TRUE))
+
+ipSAE_b_to_a_success_comparison = dt %>% group_by(antigen,above_ipSAE_b_to_a_85) %>% 
+  summarise(success_rate=mean(binder_by_estimated_KD_1000nM==TRUE, na.rm=TRUE)) 
+
 ## Fisher test to see if the proportions are different
 ipSAE_fisher_results = dt %>%
   group_by(antigen) %>%
@@ -519,17 +689,18 @@ cowplot::ggsave2("../plots/bcma_cd22_stain_activity_gain.pdf",bcma_cd22_stain_kd
 
 ## Show ipSAE distribution of YSD campaigns that had binders
 
-ysd_dt = dt %>% filter(campaign %in% c("BCMA_E3_fold conditioned","BCMA_BindCraft_Small","CD19_BindCraft_big_1","CD22_BindCraft_Domain 7_small"))
-ysd_dt = ysd_dt %>% mutate(
-  campaign_renamed = case_when(
-    campaign == "BCMA_E3_fold conditioned" ~ "BCMA\n(RFD)",
-    campaign == "BCMA_BindCraft_Small" ~ "BCMA\n(BC)",
-    campaign == "CD19_BindCraft_big_1" ~ "CD19\n(BC)",
-    campaign == "CD22_BindCraft_Domain 7_small" ~ "CD22\n(BC)",
-  )
-)
+# ysd_dt = dt %>% filter(campaign %in% c("BCMA_E3_fold conditioned","BCMA_BindCraft_Small","CD19_BindCraft_big_1","CD22_BindCraft_Domain 7_small"))
+# ysd_dt = ysd_dt %>% mutate(
+#   campaign_renamed = case_when(
+#     campaign == "BCMA_E3_fold conditioned" ~ "BCMA\n(RFD)",
+#     campaign == "BCMA_BindCraft_Small" ~ "BCMA\n(BC)",
+#     campaign == "CD19_BindCraft_big_1" ~ "CD19\n(BC)",
+#     campaign == "CD22_BindCraft_Domain 7_small" ~ "CD22\n(BC)",
+#   )
+# )
+ysd_dt = dt %>% filter(campaign %in% c("BCMA RFDiffusion Campaign 5","BCMA BindCraft Campaign 1","CD19 BindCraft Campaign 2","CD22 BindCraft Campaign 1"))
 
-ysd_campaign_ipsae_plot = ggplot(ysd_dt,aes(x=campaign_renamed,y=Average_ipSAE,color=binder_by_YSD_1000nM)) +
+ysd_campaign_ipsae_plot = ggplot(ysd_dt,aes(x=campaign,y=Average_ipSAE,color=binder_by_YSD_1000nM)) +
   #geom_boxplot() +
   geom_point(position = position_jitterdodge()) +
   pretty_plot() + L_border() +
@@ -537,9 +708,53 @@ ysd_campaign_ipsae_plot = ggplot(ysd_dt,aes(x=campaign_renamed,y=Average_ipSAE,c
   geom_hline(yintercept = 0.85,linetype="dashed",color="black") +
   labs(x="Campaign",y="Average ipSAE") +
   theme(legend.position = "none",text = element_text(size = 8))
+ysd_campaign_ipsae_plot
 cowplot::ggsave2("../plots/ysd_ipsae_cutoff.pdf",ysd_campaign_ipsae_plot,height=1.6,width=1.8)
 
 ysd_campaign_ipsae_plot
+
+## Add ipSAE max/min/a->b/b->a
+
+ysd_campaign_ipsae_max_plot = ggplot(ysd_dt,aes(x=campaign,y=Average_ipSAE_max,color=binder_by_YSD_1000nM)) +
+  geom_point(position = position_jitterdodge()) +
+  pretty_plot() + L_border() +
+  scale_color_manual(values=c("FALSE"="gray","TRUE"="dodgerblue3")) +
+  geom_hline(yintercept = 0.85,linetype="dashed",color="black") +
+  labs(x="Campaign",y="Average ipSAE max") +
+  theme(legend.position = "none",text = element_text(size = 8))
+ysd_campaign_ipsae_max_plot
+cowplot::ggsave2("../plots/ysd_ipsae_max.pdf",ysd_campaign_ipsae_max_plot,height=1.5,width=1.75)
+
+ysd_campaign_ipsae_min_plot = ggplot(ysd_dt,aes(x=campaign,y=Average_ipSAE_min,color=binder_by_YSD_1000nM)) +
+  geom_point(position = position_jitterdodge()) +
+  pretty_plot() + L_border() +
+  scale_color_manual(values=c("FALSE"="gray","TRUE"="dodgerblue3")) +
+  #geom_hline(yintercept = 0.85,linetype="dashed",color="black") +
+  labs(x="Campaign",y="Average ipSAE min") +
+  theme(legend.position = "none",text = element_text(size = 8))
+ysd_campaign_ipsae_min_plot
+cowplot::ggsave2("../plots/ysd_ipsae_min.pdf",ysd_campaign_ipsae_min_plot,height=1.5,width=1.75)
+
+ysd_campaign_ipsae_a_to_b_plot = ggplot(ysd_dt,aes(x=campaign,y=Average_Chn1_A_to_Chn2_B_ipSAE,color=binder_by_YSD_1000nM)) +
+  geom_point(position = position_jitterdodge()) +
+  pretty_plot() + L_border() +
+  scale_color_manual(values=c("FALSE"="gray","TRUE"="dodgerblue3")) +
+  #geom_hline(yintercept = 0.85,linetype="dashed",color="black") +
+  labs(x="Campaign",y="Average ipSAE (Chn1:binder -> Chn2:target)") +
+  theme(legend.position = "none",text = element_text(size = 8))
+ysd_campaign_ipsae_a_to_b_plot
+cowplot::ggsave2("../plots/ysd_ipsae_a_to_b.pdf",ysd_campaign_ipsae_a_to_b_plot,height=1.5,width=1.75)
+
+ysd_campaign_ipsae_b_to_a_plot = ggplot(ysd_dt,aes(x=campaign,y=Average_Chn1_B_to_Chn2_A_ipSAE,color=binder_by_YSD_1000nM)) +
+  geom_point(position = position_jitterdodge()) +
+  pretty_plot() + L_border() +
+  scale_color_manual(values=c("FALSE"="gray","TRUE"="dodgerblue3")) +
+  #geom_hline(yintercept = 0.85,linetype="dashed",color="black") +
+  labs(x="Campaign",y="Average ipSAE (Chn1:target -> Chn2:binder)") +
+  theme(legend.position = "none",text = element_text(size = 8))
+ysd_campaign_ipsae_b_to_a_plot
+cowplot::ggsave2("../plots/ysd_ipsae_b_to_a.pdf",ysd_campaign_ipsae_b_to_a_plot,height=1.5,width=1.75)
+
 
 ysd_campaign_pae_plot = ggplot(ysd_dt,aes(x=campaign_renamed,y=Average_pae_interaction,color=binder_by_YSD_1000nM)) +
   #geom_boxplot() +
@@ -597,6 +812,15 @@ pae_ysd_success_rate = dt %>% group_by(campaign,below_pae_10) %>%
 ipSAE_ysd_success_rate = dt %>% group_by(campaign,above_ipSAE_85) %>% 
   summarise(success_rate=mean(binder_by_YSD_100nM==TRUE)) %>%
   mutate(metric="ipSAE>=0.85") %>% filter(above_ipSAE_85)
+
+# ipSAE_min_ysd_success_rate = dt %>% group_by(campaign,above_ipSAE_85) %>% 
+#   summarise(success_rate=mean(binder_by_YSD_100nM==TRUE)) %>%
+#   mutate(metric="ipSAE>=0.85") %>% filter(above_ipSAE_85)
+# 
+# ipSAE_max_ysd_success_rate = dt %>% group_by(campaign,above_ipSAE_85) %>% 
+#   summarise(success_rate=mean(binder_by_YSD_100nM==TRUE)) %>%
+#   mutate(metric="ipSAE>=0.85") %>% filter(above_ipSAE_85)
+
 # pde_ysd_success_rate = dt %>% group_by(campaign,below_pde_1) %>% 
 #   summarise(success_rate=mean(binder_by_YSD_1000nM==TRUE, na.rm=TRUE)) %>%
 #   mutate(metric="pde<1") %>% filter(below_pde_1)
@@ -689,7 +913,62 @@ ipsae_kd <- mpnn_dt %>%
 
 ipsae_kd
 
-plddt_kd
+ipsae_min_kd <- mpnn_dt %>% 
+  ggplot(aes(x = Average_ipSAE_min,y=neg_log10_Kd_M, color = campaign)) + 
+  geom_point() + pretty_plot(fontsize = 8) + L_border() +
+  scale_color_manual(values=mpnn_campaign_colors) +
+  theme(legend.position = "none") +
+  labs(x="Average ipSAE min", y="Estimated Kd (M)") +
+  scale_y_continuous(labels = function(x) parse(text = paste0("10^-", x)))
+
+ipsae_max_kd <- mpnn_dt %>% 
+  ggplot(aes(x = Average_ipSAE_max,y=neg_log10_Kd_M, color = campaign)) + 
+  geom_point() + pretty_plot(fontsize = 8) + L_border() +
+  scale_color_manual(values=mpnn_campaign_colors) +
+  theme(legend.position = "none") +
+  labs(x="Average ipSAE max", y="Estimated Kd (M)") +
+  scale_y_continuous(labels = function(x) parse(text = paste0("10^-", x)))
+
+ipsae_chn1_a_to_chn2_b_kd <- mpnn_dt %>% 
+  ggplot(aes(x = Average_Chn1_A_to_Chn2_B_ipSAE,y=neg_log10_Kd_M, color = campaign)) + 
+  geom_point() + pretty_plot(fontsize = 8) + L_border() +
+  scale_color_manual(values=mpnn_campaign_colors) +
+  theme(legend.position = "none") +
+  labs(x="Average ipSAE (Chn1:binder -> Chn2:target)", y="Estimated Kd (M)") +
+  scale_y_continuous(labels = function(x) parse(text = paste0("10^-", x)))
+
+ipsae_chn1_b_to_chn1_a_kd <- mpnn_dt %>% 
+  ggplot(aes(x = Average_Chn1_B_to_Chn2_A_ipSAE,y=neg_log10_Kd_M, color = campaign)) + 
+  geom_point() + pretty_plot(fontsize = 8) + L_border() +
+  scale_color_manual(values=mpnn_campaign_colors) +
+  theme(legend.position = "none") +
+  labs(x="Average ipSAE (Chn1:target -> Chn2:binder)", y="Estimated Kd (M)") +
+  scale_y_continuous(labels = function(x) parse(text = paste0("10^-", x)))
+
+combined_ipsae_kd_plots = cowplot::plot_grid(ipsae_min_kd,ipsae_max_kd,ipsae_chn1_a_to_chn2_b_kd,ipsae_chn1_b_to_chn1_a_kd,nrow=2)
+cowplot::ggsave2("../plots/combined_ipsae_kd_plots.pdf",combined_ipsae_kd_plots,dpi=300,height=3.2,width=3.5)
+
+ipsae_comparison_plot = ggplot(mpnn_dt,aes(y=Average_ipSAE_max,x=Average_Chn1_B_to_Chn2_A_ipSAE,color=campaign)) +
+  geom_point() + 
+  geom_abline(slope=1, intercept=0,linetype="dashed") +
+  pretty_plot() + L_border() +
+  theme(legend.position = "none") +
+  scale_color_manual(values=mpnn_campaign_colors)
+ipsae_comparison_plot
+
+cowplot::ggsave2("../plots/ipsae_comparison_plot.pdf",ipsae_comparison_plot,dpi=300,height=1.5,width=1.75)
+
+
+ipsae_min_comparison_plot = ggplot(mpnn_dt,aes(y=Average_ipSAE_min,x=Average_Chn1_B_to_Chn2_A_ipSAE,color=campaign)) +
+  geom_point() + 
+  geom_abline(slope=1, intercept=0,linetype="dashed") +
+  pretty_plot() + L_border() +
+  theme(legend.position = "none") +
+  scale_color_manual(values=mpnn_campaign_colors)
+ipsae_min_comparison_plot
+
+cowplot::ggsave2("../plots/ipsae_min_comparison_plot.pdf",ipsae_min_comparison_plot,dpi=300,height=1.5,width=1.75)
+
 
 combined_metric_kd = cowplot::plot_grid(pae_kd,iptm_kd,ipsae_kd,ncol=3)
 
@@ -700,6 +979,23 @@ ipsae_kd_zoomed = ipsae_kd +
   geom_vline(xintercept = 0.85, linetype="dashed",color="gray")
 ipsae_kd_zoomed
 cowplot::ggsave2("../plots/ipSAE_kd_plot_zoomed.pdf",ipsae_kd_zoomed,dpi=300,height=1.6,width=1.6)
+
+
+ipsae_max_binder_kd_zoomed = ipsae_kd + 
+  xlim(0.80,0.9) +
+  geom_vline(xintercept = 0.85, linetype="dashed",color="gray") +
+  theme(legend.position = "none")
+ipsae_max_binder_kd_zoomed
+cowplot::ggsave2("../plots/ipSAE_max_binder_kd_plot_zoomed.pdf",ipsae_max_binder_kd_zoomed,dpi=300,height=1.6,width=1.75)
+
+ipsae_target_binder_kd_zoomed = ipsae_chn2_a_to_chn1_b_kd + 
+  xlim(0.80,0.9) +
+  geom_vline(xintercept = 0.85, linetype="dashed",color="gray") +
+  theme(legend.position = "none")
+ipsae_target_binder_kd_zoomed
+cowplot::ggsave2("../plots/ipSAE_target_binder_kd_plot_zoomed.pdf",ipsae_target_binder_kd_zoomed,dpi=300,height=1.6,width=1.75)
+
+
 
 ## plot charges
 ysd_campaigns = c("BCMA_E3_fold conditioned","BCMA_BindCraft_Small","CD19_BindCraft_big_1","CD22_BindCraft_Domain 7_small")
